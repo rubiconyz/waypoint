@@ -85,7 +85,7 @@ export const MOUNTAIN_CHECKPOINTS: Checkpoint[] = [
     },
 ];
 
-export const MOUNTAIN_HEIGHT = 500; // pixels
+export const MOUNTAIN_HEIGHT = 400; // pixels
 export const MOUNTAIN_MAX_DAYS = 100;
 
 export interface MountainState {
