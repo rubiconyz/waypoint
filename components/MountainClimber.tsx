@@ -202,7 +202,7 @@ export const MountainClimber: React.FC<MountainClimberProps> = ({ habits }) => {
 
             {/* Mountain Canvas */}
             <div
-                className="relative rounded-2xl overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-800 max-w-3xl mx-auto"
+                className="relative rounded-2xl overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-800"
                 style={{ height: `${MOUNTAIN_HEIGHT}px` }}
             >
                 {/* Sky Background */}
@@ -228,10 +228,11 @@ export const MountainClimber: React.FC<MountainClimberProps> = ({ habits }) => {
                     )}
                 </div>
 
+                {/* Mountain Image - Changes based on stage */}
                 <img
                     src={`/assets/Mountain/${currentCheckpoint.stage === 3 ? '3new' : currentCheckpoint.stage}.png`}
                     alt={`Mountain Stage ${currentCheckpoint.stage}`}
-                    className="absolute inset-0 w-full h-full object-contain transition-opacity duration-1000"
+                    className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
                 />
             </div>
 
