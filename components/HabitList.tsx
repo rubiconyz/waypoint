@@ -397,6 +397,24 @@ export const HabitList: React.FC<HabitListProps> = ({
                       )}
                     </div>
 
+                    {/* Target Duration (Optional) - Edit Form */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
+                        Target Duration (Optional) ⏱️
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={editTargetDuration}
+                        onChange={(e) => setEditTargetDuration(e.target.value)}
+                        placeholder="e.g., 30 minutes"
+                        className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg text-sm"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Add a timer for this habit (in minutes)
+                      </p>
+                    </div>
+
                     {/* Actions */}
                     <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
                       <button onClick={() => setEditingId(null)} className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">Cancel</button>
