@@ -28,8 +28,8 @@ export const Timer: React.FC<TimerProps> = ({
     }, [onComplete, onClose]);
 
     const targetSeconds = targetDuration * 60;
-    const elapsedSeconds = targetSeconds - remainingSeconds;
-    const progress = Math.min((elapsedSeconds / targetSeconds) * 100, 100);
+    // Calculate remaining percentage instead of elapsed
+    const remainingPercent = Math.max((remainingSeconds / targetSeconds) * 100, 0);
 
     useEffect(() => {
         if (!isRunning || isCompleted) return;
@@ -110,7 +110,7 @@ export const Timer: React.FC<TimerProps> = ({
                             strokeWidth="12"
                             strokeLinecap="round"
                             strokeDasharray={`${2 * Math.PI * 130}`}
-                            strokeDashoffset={`${2 * Math.PI * 130 * (1 - progress / 100)}`}
+                            strokeDashoffset={`${2 * Math.PI * 130 * (1 - remainingPercent / 100)}`}
                             className="transition-all duration-300"
                             style={{ filter: 'drop-shadow(0 0 8px rgba(99, 102, 241, 0.5))' }}
                         />
@@ -126,7 +126,7 @@ export const Timer: React.FC<TimerProps> = ({
                         </div>
                         <div className="mt-2">
                             <div className="text-sm text-indigo-600 dark:text-indigo-400 font-semibold">
-                                {Math.round(progress)}%
+                                {Math.round(remainingPercent)}%
                             </div>
                         </div>
                     </div>
