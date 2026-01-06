@@ -1,334 +1,227 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Habit } from '../types';
-import {
-    MOUNTAIN_CHECKPOINTS,
-    MOUNTAIN_HEIGHT,
-    MOUNTAIN_MAX_DAYS,
-    MountainState,
-    calculateTotalCompletedDays,
-    getLastCompletionDate,
-    calculateDaysBetween,
-    calculateAltitude,
-    getCurrentCheckpoint,
-    getNextCheckpoint,
-    calculateSlideDown,
-    getSkyGradient,
-    getMountainStage,
-    Checkpoint
-} from '../mountainData';
-import { AlertTriangle, Mountain, TrendingUp, TrendingDown, Trophy, Flag } from 'lucide-react';
+import { Mountain, Lock, Unlock, Play, Coins, MapPin, CheckCircle2 } from 'lucide-react';
 
 interface MountainClimberProps {
     habits: Habit[];
+    coins: number;
+    unlockedCheckpoints: number[];
+    onUnlockCheckpoint: (id: number, cost: number) => void;
 }
 
-const STORAGE_KEY = 'habitvision_mountain';
+// Configuration
+const CHECKPOINT_DATA = [
+    { id: 0, name: "Base Camp", cost: 0, image: "1.png", video: "scene1.mp4", altitude: 0 },
+    { id: 1, name: "Foothills", cost: 5, image: "2.png", video: "scene2.mp4", altitude: 1000 },
+    { id: 2, name: "High Pass", cost: 10, image: "3new.png", video: "scene3.mp4", altitude: 2500 },
+    { id: 3, name: "Rocky Ridge", cost: 15, image: "4.png", video: "scene4.mp4", altitude: 4000 },
+    { id: 4, name: "Snow Line", cost: 20, image: "5.png", video: "scene5.mp4", altitude: 6000 },
+    { id: 5, name: "Ice Wall", cost: 25, image: "6.png", video: "scene6.mp4", altitude: 7500 },
+    { id: 6, name: "The Summit", cost: 30, image: "7.png", video: "scene7.mp4", altitude: 8848 },
+    { id: 7, name: "Beyond", cost: 50, image: "8.png", video: null, altitude: 10000 },
+];
 
-// Helper to get today's date string
-const getLocalDateString = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
+export const MountainClimber: React.FC<MountainClimberProps> = ({
+    habits,
+    coins,
+    unlockedCheckpoints,
+    onUnlockCheckpoint
+}) => {
+    // State
+    const [isUnlocking, setIsUnlocking] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
 
-export const MountainClimber: React.FC<MountainClimberProps> = ({ habits }) => {
-    const totalDays = calculateTotalCompletedDays(habits);
-    const todayStr = getLocalDateString(new Date());
-    const lastCompletionDate = getLastCompletionDate(habits);
+    // Derived State
+    const highestUnlockedId = Math.max(...unlockedCheckpoints);
 
-    // Calculate days without activity
-    const daysWithoutActivity = lastCompletionDate
-        ? calculateDaysBetween(lastCompletionDate, todayStr)
-        : totalDays === 0 ? 0 : 999; // If no completion date but has days, something's wrong
+    const currentCheckpoint = CHECKPOINT_DATA.find(c => c.id === highestUnlockedId) || CHECKPOINT_DATA[0];
+    const nextCheckpoint = CHECKPOINT_DATA.find(c => c.id === highestUnlockedId + 1);
 
-    // Mountain state
-    const [mountainState, setMountainState] = useState<MountainState>({
-        currentAltitude: 0,
-        highestReached: 0,
-        lastCheckpointReached: MOUNTAIN_CHECKPOINTS[0],
-        lastActivityDate: '',
-        consecutiveBreaks: 0
-    });
+    // Video Logic:
+    // We always show the video associated with the CURRENT checkpoint.
+    // - Resting: Paused at start (View of path ahead).
+    // - Unlocking: Play from start (Climb the path).
+    // - Post-Unlock: Current changes to Next -> Video updates to Next -> Paused at start.
+    const videoSource = currentCheckpoint.video || "scene7.mp4";
 
-    // Load saved state
-    useEffect(() => {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            try {
-                setMountainState(JSON.parse(saved));
-            } catch (e) {
-                console.error('Failed to parse mountain state', e);
-            }
+    // Handlers
+    const handleUnlock = () => {
+        if (!nextCheckpoint || coins < nextCheckpoint.cost) return;
+        setIsUnlocking(true);
+        // The effect below will trigger playback when isUnlocking becomes true
+    };
+
+    const handleVideoEnd = () => {
+        if (isUnlocking && nextCheckpoint) {
+            // Actual Logic: Deduct coins and Unlock the next stage
+            onUnlockCheckpoint(nextCheckpoint.id, nextCheckpoint.cost);
+            setIsUnlocking(false);
+            // After this, 'highestUnlockedId' increments.
+            // 'currentCheckpoint' becomes what was 'nextCheckpoint'.
+            // 'videoSource' stays the same (sceneX), avoiding a jump.
         }
-    }, []);
+    };
 
-    // Update altitude with slide-down logic
+    // Effect to manage video playback/reloading
     useEffect(() => {
-        const baseAltitude = calculateAltitude(totalDays);
-        const currentCheckpoint = getCurrentCheckpoint(totalDays);
+        const video = videoRef.current;
+        if (!video) return;
 
-        // Apply slide-down if there's been inactivity
-        const newAltitude = calculateSlideDown(
-            baseAltitude,
-            daysWithoutActivity,
-            mountainState.lastCheckpointReached
-        );
+        // Determine if we need to load or play
+        const isTransitioning = isUnlocking;
 
-        const newState = {
-            currentAltitude: newAltitude,
-            highestReached: Math.max(newAltitude, mountainState.highestReached),
-            lastCheckpointReached: currentCheckpoint,
-            lastActivityDate: lastCompletionDate || '',
-            consecutiveBreaks: daysWithoutActivity
-        };
+        if (isTransitioning) {
+            video.muted = false;
+            video.play().catch(e => console.log("Play failed", e));
+        } else {
+            video.muted = true;
+            video.pause();
+            video.currentTime = 0; // Reset to start for the "Frozen" background look
+        }
+    }, [videoSource, isUnlocking]);
 
-        setMountainState(newState);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
-    }, [habits, totalDays, daysWithoutActivity]);
-
-    const currentCheckpoint = getCurrentCheckpoint(totalDays);
-    const nextCheckpoint = getNextCheckpoint(totalDays);
-    const isSliding = daysWithoutActivity > 0 && totalDays > 0;
-    const progressPercentage = Math.round((totalDays / MOUNTAIN_MAX_DAYS) * 100);
+    /* 
+       Note: When 'videoSource' changes (e.g. static -> unlock transition), 
+       React updates the <video src>. The browser loads the new source.
+       We might need to wait for load, but usually standard tag handles it fast enough for local assets.
+       If glitchy, we could add onLoadedData handler.
+    */
 
     return (
-        <div className="max-w-7xl mx-auto">
-            {/* Warning Banner for Sliding */}
-            {isSliding && (
-                <div className="mb-6 bg-red-500/10 border-2 border-red-500 rounded-xl p-4 animate-pulse">
-                    <div className="flex items-center gap-3">
-                        <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0" />
-                        <div className="flex-1">
-                            <h3 className="font-bold text-red-600 dark:text-red-400">Sliding Down!</h3>
-                            <p className="text-sm text-red-600/80 dark:text-red-400/80">
-                                {daysWithoutActivity} {daysWithoutActivity === 1 ? 'day' : 'days'} without activity -
-                                you're losing altitude! Complete a habit to stop the slide.
-                            </p>
+        <div className="max-w-4xl mx-auto space-y-6">
+            {/* Header / Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-gray-500 dark:text-gray-400 text-sm font-medium uppercase tracking-wide">Current Altitude</h2>
+                        <div className="text-3xl font-bold text-gray-900 dark:text-white mt-1 flex items-baseline gap-1">
+                            {currentCheckpoint.altitude}
+                            <span className="text-sm font-normal text-gray-500">m</span>
                         </div>
+                        <div className="text-indigo-600 dark:text-indigo-400 text-sm font-medium mt-1">
+                            {currentCheckpoint.name}
+                        </div>
+                    </div>
+                    <div className="bg-indigo-50 dark:bg-indigo-900/30 p-3 rounded-xl">
+                        <Mountain className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
                     </div>
                 </div>
-            )}
 
-            {/* Header - Mountain Explanation */}
-            <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
-                <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                            <Mountain className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                Mountain Climber
-                            </h2>
+                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-gray-500 dark:text-gray-400 text-sm font-medium uppercase tracking-wide">Available Funds</h2>
+                        <div className="text-3xl font-bold text-gray-900 dark:text-white mt-1 flex items-baseline gap-1">
+                            {coins}
+                            <span className="text-sm font-normal text-gray-500">coins</span>
                         </div>
-                        <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-                            Climb to the summit by completing <strong>all your daily habits every day</strong>.
-                            Each perfect day moves you one step higher. Miss a day and you'll slide down!
-                        </p>
+                        <div className="text-green-600 dark:text-green-400 text-sm font-medium mt-1">
+                            +1 per habit completed
+                        </div>
                     </div>
-                    <div className="text-right">
-                        <div className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
-                            {totalDays}/{MOUNTAIN_MAX_DAYS}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-                            days to summit
-                        </div>
+                    <div className="bg-yellow-50 dark:bg-yellow-900/30 p-3 rounded-xl">
+                        <Coins className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
                     </div>
                 </div>
             </div>
 
-            {/* Stats Header */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                {/* Current Altitude */}
-                <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800">
-                    <div className="flex items-center gap-3 mb-2">
-                        <Mountain className="w-5 h-5 text-indigo-500" />
-                        <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Altitude</span>
-                    </div>
-                    <div className="text-3xl font-bold text-gray-900 dark:text-white">
-                        {totalDays}
-                        <span className="text-lg text-gray-500 dark:text-gray-400 ml-1">days</span>
-                    </div>
-                </div>
-
-                {/* Current Checkpoint */}
-                <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800">
-                    <div className="flex items-center gap-3 mb-2">
-                        <Flag className="w-5 h-5 text-green-500" />
-                        <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Checkpoint</span>
-                    </div>
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <span>{currentCheckpoint.emoji}</span>
-                        <span className="text-lg">{currentCheckpoint.name}</span>
-                    </div>
-                </div>
-
-                {/* Next Checkpoint */}
-                <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800">
-                    <div className="flex items-center gap-3 mb-2">
-                        <Trophy className="w-5 h-5 text-orange-500" />
-                        <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Next Goal</span>
-                    </div>
-                    {nextCheckpoint ? (
-                        <div>
-                            <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                                {nextCheckpoint.altitude - totalDays} days
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                                {nextCheckpoint.emoji} {nextCheckpoint.name}
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="text-2xl font-bold text-green-500">
-                            Summit! 🎉
-                        </div>
-                    )}
-                </div>
-
-                {/* Progress */}
-                <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800">
-                    <div className="flex items-center gap-3 mb-2">
-                        {isSliding ? (
-                            <TrendingDown className="w-5 h-5 text-red-500" />
-                        ) : (
-                            <TrendingUp className="w-5 h-5 text-blue-500" />
-                        )}
-                        <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Progress</span>
-                    </div>
-                    <div className="text-3xl font-bold text-gray-900 dark:text-white">
-                        {progressPercentage}%
-                    </div>
-                </div>
-            </div>
-
-            {/* Mountain Canvas */}
-            <div
-                className="relative rounded-2xl overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-800"
-                style={{ height: `${MOUNTAIN_HEIGHT}px` }}
-            >
-                {/* Sky Background */}
-                <div
-                    className="absolute inset-0 transition-all duration-1000"
-                    style={{ background: getSkyGradient(mountainState.currentAltitude) }}
-                >
-                    {/* Stars at high altitude */}
-                    {mountainState.currentAltitude > MOUNTAIN_HEIGHT * 0.7 && (
-                        <div className="absolute inset-0 opacity-30">
-                            {[...Array(50)].map((_, i) => (
-                                <div
-                                    key={i}
-                                    className="absolute w-1 h-1 bg-white rounded-full animate-pulse"
-                                    style={{
-                                        left: `${Math.random() * 100}%`,
-                                        top: `${Math.random() * 50}%`,
-                                        animationDelay: `${Math.random() * 3}s`
-                                    }}
-                                />
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* Mountain Image - Changes based on stage */}
-                <img
-                    src={`/assets/Mountain/${currentCheckpoint.stage === 3 ? '3new' : currentCheckpoint.stage}.png`}
-                    alt={`Mountain Stage ${currentCheckpoint.stage}`}
-                    className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
+            {/* Main Visual Area */}
+            <div className="relative w-full bg-gray-900 rounded-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-gray-800">
+                {/* Background Video (Acts as both static bg and transition) */}
+                <video
+                    ref={videoRef}
+                    src={`/assets/mountain_animation/${videoSource}`}
+                    className="w-full h-auto block object-contain transition-opacity duration-700"
+                    playsInline
+                    onEnded={handleVideoEnd}
+                    preload="auto"
                 />
+
+                {/* Optional: Add a "Play" hint if user wants to re-watch? No, keep it simple. */}
             </div>
 
-            {/* Checkpoints - Below the mountain */}
-            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-                {MOUNTAIN_CHECKPOINTS.map((checkpoint) => {
-                    const isReached = totalDays >= checkpoint.altitude;
-
-                    return (
-                        <div
-                            key={checkpoint.id}
-                            className={`bg-white dark:bg-gray-900 rounded-xl p-4 border-2 transition-all duration-300 ${isReached
-                                ? 'border-green-500 dark:border-green-400'
-                                : 'border-gray-200 dark:border-gray-800 opacity-60'
-                                }`}
-                        >
-                            <div className="flex items-center gap-3 mb-2">
-                                <div
-                                    className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl transition-all duration-300 ${isReached
-                                        ? 'bg-gradient-to-br shadow-lg'
-                                        : 'bg-gray-200 dark:bg-gray-700'
-                                        }`}
-                                    style={isReached ? {
-                                        backgroundImage: `linear-gradient(135deg, ${checkpoint.color} 0%, ${checkpoint.color}CC 100%)`
-                                    } : {}}
-                                >
-                                    {checkpoint.emoji}
-                                </div>
-                                {isReached && (
-                                    <div className="flex-shrink-0">
-                                        <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                            </svg>
-                                        </div>
-                                    </div>
+            {/* Next Checkpoint / Unlock Section */}
+            {nextCheckpoint ? (
+                <div className="mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-1 shadow-lg transform transition-all hover:scale-[1.01]">
+                    <div className="bg-white dark:bg-gray-900 rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                            <div className={`p-4 rounded-full ${coins >= nextCheckpoint.cost ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                                {coins >= nextCheckpoint.cost ? (
+                                    <Unlock className="w-6 h-6 text-green-600 dark:text-green-400" />
+                                ) : (
+                                    <Lock className="w-6 h-6 text-gray-400" />
                                 )}
                             </div>
-                            <div className={`text-sm font-semibold mb-1 ${isReached
-                                ? 'text-gray-900 dark:text-white'
-                                : 'text-gray-500 dark:text-gray-400'
-                                }`}>
-                                {checkpoint.name}
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                                {checkpoint.altitude} days
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Next: {nextCheckpoint.name}</h3>
+                                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                                    <MapPin size={14} />
+                                    <span>{nextCheckpoint.altitude}m</span>
+                                    <span>•</span>
+                                    <span>Cost: {nextCheckpoint.cost} Coins</span>
+                                </div>
                             </div>
                         </div>
-                    );
-                })}
-            </div>
 
-            {/* Progress Bar - Below checkpoints */}
-            <div className="mt-6 bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800">
-                <div className="flex justify-between items-center mb-3">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Climb Progress
-                    </span>
-                    <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
-                        {progressPercentage}%
-                    </span>
+                        <button
+                            onClick={handleUnlock}
+                            disabled={coins < nextCheckpoint.cost}
+                            className={`
+                                relative px-8 py-3 rounded-xl font-bold text-white shadow-md transition-all
+                                ${coins >= nextCheckpoint.cost
+                                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0'
+                                    : 'bg-gray-300 dark:bg-gray-800 cursor-not-allowed opacity-70'}
+                            `}
+                        >
+                            {coins >= nextCheckpoint.cost ? (
+                                <span className="flex items-center gap-2">
+                                    Unlock Now <Unlock size={18} />
+                                </span>
+                            ) : (
+                                <span className="flex items-center gap-2">
+                                    Need {nextCheckpoint.cost - coins} More Coins <Lock size={18} />
+                                </span>
+                            )}
+                        </button>
+                    </div>
                 </div>
-                <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                        className="h-full bg-gradient-to-r from-green-500 to-blue-500 transition-all duration-700"
-                        style={{ width: `${progressPercentage}%` }}
-                    />
-                </div>
-            </div>
-
-            {/* Checkpoint Messages */}
-            {totalDays > 0 && (
-                <div className="mt-6 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/30 rounded-xl p-6">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-                        <span className="text-2xl">{currentCheckpoint.emoji}</span>
-                        {currentCheckpoint.message}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400">
-                        You've climbed to <strong>{currentCheckpoint.name}</strong>!
-                        {nextCheckpoint && ` Next checkpoint: ${nextCheckpoint.name} in ${nextCheckpoint.altitude - totalDays} days.`}
+            ) : (
+                <div className="bg-green-100 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl p-8 text-center">
+                    <div className="inline-flex p-4 rounded-full bg-green-200 dark:bg-green-800/50 mb-4">
+                        <CheckCircle2 className="w-12 h-12 text-green-700 dark:text-green-300" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-green-800 dark:text-green-200 mb-2">Summit Reached!</h2>
+                    <p className="text-green-700 dark:text-green-300">
+                        You have conquered the mountain! Stay tuned for more challenges.
                     </p>
                 </div>
             )}
 
-            {/* Empty State */}
-            {totalDays === 0 && (
-                <div className="mt-6 text-center py-12">
-                    <div className="text-6xl mb-4">⛺</div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                        Ready to Start Climbing?
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400">
-                        Complete habits to begin your ascent to the summit!
-                    </p>
+            {/* Timeline / Map (Simplified) */}
+            <div className="mt-12 py-4 overflow-x-auto">
+                <div className="flex items-center gap-4 min-w-max px-2">
+                    {CHECKPOINT_DATA.map((cp, idx) => {
+                        const isUnlocked = unlockedCheckpoints.includes(cp.id);
+                        const isCurrent = currentCheckpoint.id === cp.id;
+
+                        return (
+                            <div key={cp.id} className="flex items-center">
+                                <div className={`
+                                    flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all
+                                    ${isCurrent ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 scale-110' :
+                                        isUnlocked ? 'border-green-500/50 bg-green-50/50 dark:bg-transparent' :
+                                            'border-gray-200 dark:border-gray-800 opacity-50'}
+                                `}>
+                                    <div className="text-xs font-bold text-gray-500">{cp.altitude}m</div>
+                                    <div className={`w-3 h-3 rounded-full ${isUnlocked ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                </div>
+                                {idx < CHECKPOINT_DATA.length - 1 && (
+                                    <div className={`w-8 h-0.5 ${unlockedCheckpoints.includes(CHECKPOINT_DATA[idx + 1].id) ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'}`} />
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
-            )}
+            </div>
         </div>
     );
 };

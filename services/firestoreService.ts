@@ -60,23 +60,37 @@ export const loadBadgeProgressFromFirestore = async (
 };
 
 // Save total habits created
-export const saveTotalHabitsToFirestore = async (
+// Save user stats (coins, checkpoints, total habits)
+export const saveUserStatsToFirestore = async (
     userId: string,
-    totalHabitsCreated: number
+    stats: {
+        totalHabitsCreated?: number;
+        coins?: number;
+        unlockedCheckpoints?: number[];
+    }
 ) => {
     const metaRef = doc(db, `users/${userId}/meta/statsDoc`);
-    await setDoc(metaRef, { totalHabitsCreated });
+    await setDoc(metaRef, stats, { merge: true });
 };
 
 // Load total habits created
-export const loadTotalHabitsFromFirestore = async (
+// Load user stats
+export const loadUserStatsFromFirestore = async (
     userId: string
-): Promise<number | null> => {
+): Promise<{
+    totalHabitsCreated?: number;
+    coins?: number;
+    unlockedCheckpoints?: number[];
+} | null> => {
     const metaRef = doc(db, `users/${userId}/meta/statsDoc`);
     const snapshot = await getDoc(metaRef);
 
     if (snapshot.exists()) {
-        return snapshot.data().totalHabitsCreated;
+        return snapshot.data() as {
+            totalHabitsCreated?: number;
+            coins?: number;
+            unlockedCheckpoints?: number[];
+        };
     }
     return null;
 };

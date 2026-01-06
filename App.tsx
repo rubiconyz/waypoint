@@ -15,8 +15,8 @@ import {
   loadHabitsFromFirestore,
   saveBadgeProgressToFirestore,
   loadBadgeProgressFromFirestore,
-  saveTotalHabitsToFirestore,
-  loadTotalHabitsFromFirestore,
+  saveUserStatsToFirestore,
+  loadUserStatsFromFirestore,
   deleteHabitFromFirestore
 } from './services/firestoreService';
 
@@ -24,6 +24,8 @@ const STORAGE_KEY = 'habitvision_data';
 const THEME_KEY = 'habitvision_theme';
 const BADGES_KEY = 'habitvision_badges';
 const TOTAL_HABITS_KEY = 'habitvision_total_habits_created';
+const COINS_KEY = 'habitvision_coins';
+const CHECKPOINTS_KEY = 'habitvision_unlocked_checkpoints';
 
 // Helper function to get date string in local timezone (YYYY-MM-DD)
 const getLocalDateString = (date: Date): string => {
@@ -205,6 +207,18 @@ const App: React.FC = () => {
     return initialTotal;
   });
 
+  // Mountain Game State
+  const [coins, setCoins] = useState(() => {
+    const saved = localStorage.getItem(COINS_KEY);
+    // Retroactive: If no coins saved, give them coins equal to total habits created (generous start)
+    return saved ? parseInt(saved, 10) : totalHabitsCreated;
+  });
+
+  const [unlockedCheckpoints, setUnlockedCheckpoints] = useState<number[]>(() => {
+    const saved = localStorage.getItem(CHECKPOINTS_KEY);
+    return saved ? JSON.parse(saved) : [0]; // 0 = Camp (default)
+  });
+
 
 
   // No longer need isInitialized - state is loaded synchronously in lazy initializer
@@ -228,27 +242,35 @@ const App: React.FC = () => {
     const loadFromFirestore = async () => {
       try {
         // Load all data from Firestore
-        const [firestoreHabits, firestoreBadges, firestoreTotal] = await Promise.all([
+        const [firestoreHabits, firestoreBadges, firestoreStats] = await Promise.all([
           loadHabitsFromFirestore(user.uid),
           loadBadgeProgressFromFirestore(user.uid),
-          loadTotalHabitsFromFirestore(user.uid)
+          loadUserStatsFromFirestore(user.uid)
         ]);
 
         // If Firestore has data, use it (cloud is source of truth)
         if (firestoreHabits && firestoreHabits.length > 0) {
           setHabits(firestoreHabits);
           if (firestoreBadges) setBadgeProgress(firestoreBadges);
-          if (firestoreTotal) setTotalHabitsCreated(firestoreTotal);
+          if (firestoreStats) {
+            if (firestoreStats.totalHabitsCreated !== undefined) setTotalHabitsCreated(firestoreStats.totalHabitsCreated);
+            if (firestoreStats.coins !== undefined) setCoins(firestoreStats.coins);
+            if (firestoreStats.unlockedCheckpoints !== undefined) setUnlockedCheckpoints(firestoreStats.unlockedCheckpoints);
+          }
         } else {
           // First login - migrate localStorage data to Firestore
           const localHabits = habits;
           const localBadges = badgeProgress;
-          const localTotal = totalHabitsCreated;
+          const localStats = {
+            totalHabitsCreated,
+            coins,
+            unlockedCheckpoints
+          };
 
           if (localHabits.length > 0) {
             await saveHabitsToFirestore(user.uid, localHabits);
             await saveBadgeProgressToFirestore(user.uid, localBadges);
-            await saveTotalHabitsToFirestore(user.uid, localTotal);
+            await saveUserStatsToFirestore(user.uid, localStats);
           }
         }
       } catch (error) {
@@ -280,14 +302,19 @@ const App: React.FC = () => {
     const saveBadgesToFirestore = async () => {
       try {
         await saveBadgeProgressToFirestore(user.uid, badgeProgress);
-        await saveTotalHabitsToFirestore(user.uid, totalHabitsCreated);
+        await saveBadgeProgressToFirestore(user.uid, badgeProgress);
+        await saveUserStatsToFirestore(user.uid, {
+          totalHabitsCreated,
+          coins,
+          unlockedCheckpoints
+        });
       } catch (error) {
         console.error('Error saving badges to Firestore:', error);
       }
     };
 
     saveBadgesToFirestore();
-  }, [badgeProgress, totalHabitsCreated, user?.uid, authLoading]);
+  }, [badgeProgress, totalHabitsCreated, coins, unlockedCheckpoints, user?.uid, authLoading]);
 
 
 
@@ -322,7 +349,13 @@ const App: React.FC = () => {
       // Save updated badges to localStorage
       localStorage.setItem(BADGES_KEY, JSON.stringify(updatedBadges));
     }
-  }, [habits, badgeProgress, totalHabitsCreated]);
+
+
+    // Persist Stats
+    localStorage.setItem(COINS_KEY, coins.toString());
+    localStorage.setItem(CHECKPOINTS_KEY, JSON.stringify(unlockedCheckpoints));
+
+  }, [habits, badgeProgress, totalHabitsCreated, coins, unlockedCheckpoints]);
 
 
 
@@ -430,6 +463,20 @@ const App: React.FC = () => {
         streak: newStreak
       };
     }));
+
+    // Coin Logic (Anti-Exploit)
+    const habit = habits.find(h => h.id === id);
+    if (habit) {
+      const oldStatus = habit.history[date];
+      // If changing TO completed (from null/skipped/partial) -> Add Coin
+      if (status === 'completed' && oldStatus !== 'completed') {
+        setCoins(prev => prev + 1);
+      }
+      // If changing FROM completed (to null/skipped/partial) -> Deduct Coin
+      else if (oldStatus === 'completed' && status !== 'completed') {
+        setCoins(prev => Math.max(0, prev - 1));
+      }
+    }
   };
 
   const addHabit = (title: string, category: string, frequency: HabitFrequency, targetDuration?: number) => {
@@ -472,6 +519,14 @@ const App: React.FC = () => {
 
   const reorderHabits = (reorderedHabits: Habit[]) => {
     setHabits(reorderedHabits);
+  };
+
+  const unlockCheckpoint = (checkpointId: number, cost: number) => {
+    if (coins >= cost && !unlockedCheckpoints.includes(checkpointId)) {
+      setCoins(prev => prev - cost);
+      setUnlockedCheckpoints(prev => [...prev, checkpointId]);
+      triggerConfetti();
+    }
   };
 
 
@@ -577,7 +632,6 @@ const App: React.FC = () => {
           </div>
         </div>
       </header>
-
       <main className="flex-1 max-w-5xl mx-auto w-full p-4 md:p-6">
         {activeTab === 'tracker' ? (
           <div className="grid md:grid-cols-3 gap-6">
@@ -603,11 +657,32 @@ const App: React.FC = () => {
                 </div>
               </div>
 
+              {/* Coin Balance Card */}
+              <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm transition-colors">
+                <h3 className="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                  <div className="bg-yellow-100 dark:bg-yellow-900/40 p-1.5 rounded-lg">
+                    <Mountain size={18} className="text-yellow-600 dark:text-yellow-400" />
+                  </div>
+                  Available Funds
+                </h3>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white">{coins}</span>
+                  <span className="text-gray-500 dark:text-gray-400 font-medium">Coins</span>
+                </div>
+                <button
+                  onClick={() => setActiveTab('mountain')}
+                  className="w-full mt-4 py-2 text-sm text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center justify-center gap-2"
+                >
+                  Spend Coins <Mountain size={14} />
+                </button>
+              </div>
+
               <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm transition-colors">
                 <h3 className="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
                   <BarChart2 size={18} className="text-gray-400" />
                   Quick Stats
                 </h3>
+
                 <div className="space-y-4">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500 dark:text-gray-400">Active Habits</span>
@@ -630,9 +705,14 @@ const App: React.FC = () => {
           <Analytics habits={habits} />
         ) : activeTab === 'badges' ? (
           <Badges habits={habits} badgeProgress={badgeProgress} totalHabitsCreated={totalHabitsCreated} />
-        ) : (
-          <MountainClimber habits={habits} />
-        )}
+        ) : activeTab === 'mountain' ? (
+          <MountainClimber
+            habits={habits}
+            coins={coins}
+            unlockedCheckpoints={unlockedCheckpoints}
+            onUnlockCheckpoint={unlockCheckpoint}
+          />
+        ) : null /* Fallback for unknown tab */}
       </main>
 
       {/* Badge Notification */}
