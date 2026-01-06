@@ -80,8 +80,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                 )}
 
                 {verificationSent && (
-                    <div className="mb-4 p-3 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400 text-sm">
-                        ✅ Account created! Please check your email to verify your account.
+                    <div className="mb-4 p-4 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400 text-sm space-y-2">
+                        <div className="font-semibold flex items-center gap-2">
+                            ✅ Account created successfully!
+                        </div>
+                        <div className="text-xs leading-relaxed">
+                            <p className="font-medium mb-1">📧 Please check your email to verify your account:</p>
+                            <ul className="list-disc list-inside space-y-0.5 ml-1">
+                                <li>Check your inbox for a verification email</li>
+                                <li>Don't forget to check your <strong>spam folder</strong></li>
+                                <li>Click the verification link to activate your account</li>
+                            </ul>
+                        </div>
                     </div>
                 )}
 
