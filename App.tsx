@@ -523,9 +523,32 @@ const App: React.FC = () => {
               </span>
             )}
 
+            <button onClick={toggleTheme} className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
 
+            <nav className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg ml-1">
+              <button onClick={() => setActiveTab('tracker')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'tracker' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                <ListTodo size={16} />
+                <span className="hidden sm:inline">Tracker</span>
+              </button>
+              <button onClick={() => setActiveTab('analytics')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'analytics' ? 'bg-white dark:bg-gray-700 text-indigo-700 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                <BarChart2 size={16} />
+                <span className="hidden sm:inline">Analytics</span>
+              </button>
+              <button onClick={() => setActiveTab('badges')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'badges' ? 'bg-white dark:bg-gray-700 text-yellow-600 dark:text-yellow-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                <Award size={16} />
+                <span className="hidden sm:inline">Badges</span>
+              </button>
+              <button onClick={() => setActiveTab('mountain')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'mountain' ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                <Mountain size={16} />
+                <span className="hidden sm:inline">Mountain</span>
+              </button>
+            </nav>
+
+            {/* User Auth - Far Right */}
             {user ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 ml-2">
                 {/* User Avatar */}
                 {user.photoURL ? (
                   // Google profile photo
@@ -552,35 +575,12 @@ const App: React.FC = () => {
             ) : (
               <button
                 onClick={() => setShowAuthModal(true)}
-                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
+                className="ml-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
               >
                 <User size={16} />
                 <span className="hidden sm:inline">Sign In</span>
               </button>
             )}
-
-            <button onClick={toggleTheme} className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-
-            <nav className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg ml-1">
-              <button onClick={() => setActiveTab('tracker')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'tracker' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                <ListTodo size={16} />
-                <span className="hidden sm:inline">Tracker</span>
-              </button>
-              <button onClick={() => setActiveTab('analytics')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'analytics' ? 'bg-white dark:bg-gray-700 text-indigo-700 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                <BarChart2 size={16} />
-                <span className="hidden sm:inline">Analytics</span>
-              </button>
-              <button onClick={() => setActiveTab('badges')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'badges' ? 'bg-white dark:bg-gray-700 text-yellow-600 dark:text-yellow-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                <Award size={16} />
-                <span className="hidden sm:inline">Badges</span>
-              </button>
-              <button onClick={() => setActiveTab('mountain')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'mountain' ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                <Mountain size={16} />
-                <span className="hidden sm:inline">Mountain</span>
-              </button>
-            </nav>
           </div>
         </div>
       </header>
