@@ -13,6 +13,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [verificationSent, setVerificationSent] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -22,10 +23,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
         try {
             if (isSignUp) {
                 await signUp(email, password);
+                setVerificationSent(true);
+                // Auto-close after showing message
+                setTimeout(() => onClose(), 5000);
             } else {
                 await signIn(email, password);
+                onClose();
             }
-            onClose();
         } catch (err: any) {
             setError(err.message || 'Authentication failed');
         } finally {
@@ -69,6 +73,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                 {error && (
                     <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
                         {error}
+                    </div>
+                )}
+
+                {verificationSent && (
+                    <div className="mb-4 p-3 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400 text-sm">
+                        ✅ Account created! Please check your email to verify your account.
                     </div>
                 )}
 

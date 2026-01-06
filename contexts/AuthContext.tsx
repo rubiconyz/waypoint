@@ -5,7 +5,8 @@ import {
     signInWithEmailAndPassword,
     signInWithPopup,
     signOut,
-    onAuthStateChanged
+    onAuthStateChanged,
+    sendEmailVerification
 } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 
@@ -42,7 +43,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const signUp = async (email: string, password: string) => {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        // Send verification email
+        await sendEmailVerification(userCredential.user);
     };
 
     const signIn = async (email: string, password: string) => {
