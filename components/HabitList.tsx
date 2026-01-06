@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Habit, HabitFrequency } from '../types';
-import { Check, Plus, Trash2, Flame, Pencil, X, Save, MoreVertical, SkipForward, PieChart, GripVertical, Timer } from 'lucide-react';
-import { Stopwatch } from './Stopwatch';
+import { Check, Plus, Trash2, Flame, Pencil, X, Save, MoreVertical, SkipForward, PieChart, GripVertical, Timer as TimerIcon } from 'lucide-react';
+import { Timer } from './Timer';
 
 interface HabitListProps {
   habits: Habit[];
@@ -514,7 +514,7 @@ export const HabitList: React.FC<HabitListProps> = ({
                         className="relative z-10 text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                         title={`Start ${habit.targetDuration} min timer`}
                       >
-                        <Timer size={18} />
+                        <TimerIcon size={18} />
                       </button>
                     )}
 
@@ -591,7 +591,7 @@ export const HabitList: React.FC<HabitListProps> = ({
         if (!habit || !habit.targetDuration) return null;
 
         return (
-          <Stopwatch
+          <Timer
             habitTitle={habit.title}
             targetDuration={habit.targetDuration}
             onComplete={() => {

@@ -1,46 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import { X, Play, Pause, RotateCcw } from 'lucide-react';
 
-interface StopwatchProps {
+interface TimerProps {
     habitTitle: string;
     targetDuration: number; // in minutes
     onComplete: () => void;
     onClose: () => void;
 }
 
-export const Stopwatch: React.FC<StopwatchProps> = ({
+export const Timer: React.FC<TimerProps> = ({
     habitTitle,
     targetDuration,
     onComplete,
     onClose
 }) => {
     const [isRunning, setIsRunning] = useState(false);
-    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [remainingSeconds, setRemainingSeconds] = useState(targetDuration * 60);
     const [isCompleted, setIsCompleted] = useState(false);
 
     const targetSeconds = targetDuration * 60;
+    const elapsedSeconds = targetSeconds - remainingSeconds;
     const progress = Math.min((elapsedSeconds / targetSeconds) * 100, 100);
 
     useEffect(() => {
         if (!isRunning || isCompleted) return;
 
         const interval = setInterval(() => {
-            setElapsedSeconds(prev => {
-                const newValue = prev + 1;
-                if (newValue >= targetSeconds) {
+            setRemainingSeconds(prev => {
+                const newValue = prev - 1;
+                if (newValue <= 0) {
                     setIsRunning(false);
                     setIsCompleted(true);
                     onComplete();
                     // Auto-close after 3 seconds
                     setTimeout(() => onClose(), 3000);
-                    return targetSeconds;
+                    return 0;
                 }
                 return newValue;
             });
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [isRunning, isCompleted, targetSeconds, onComplete, onClose]);
+    }, [isRunning, isCompleted, onComplete, onClose]);
 
     const formatTime = (seconds: number): string => {
         const mins = Math.floor(seconds / 60);
@@ -49,12 +50,10 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
     };
 
     const handleReset = () => {
-        setElapsedSeconds(0);
+        setRemainingSeconds(targetSeconds);
         setIsRunning(false);
         setIsCompleted(false);
     };
-
-    const remainingSeconds = Math.max(0, targetSeconds - elapsedSeconds);
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
@@ -75,7 +74,7 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
                         {habitTitle}
                     </h2>
                     <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                        Goal: {targetDuration} minute{targetDuration !== 1 ? 's' : ''}
+                        Timer: {targetDuration} minute{targetDuration !== 1 ? 's' : ''}
                     </p>
                 </div>
 
@@ -111,10 +110,10 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
                     {/* Time display */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                         <div className="text-6xl font-bold text-gray-900 dark:text-white font-mono tracking-tight">
-                            {formatTime(elapsedSeconds)}
+                            {formatTime(remainingSeconds)}
                         </div>
                         <div className="text-base text-gray-500 dark:text-gray-400 mt-3 font-medium">
-                            {isCompleted ? '✨ Complete!' : `${formatTime(remainingSeconds)} left`}
+                            {isCompleted ? '✨ Complete!' : 'remaining'}
                         </div>
                         <div className="mt-2">
                             <div className="text-sm text-indigo-600 dark:text-indigo-400 font-semibold">
@@ -127,14 +126,14 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
                 {isCompleted && (
                     <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-300 dark:border-green-700 rounded-2xl text-center animate-bounce-small">
                         <p className="text-green-700 dark:text-green-400 font-bold text-lg">
-                            🎉 Goal Reached! Habit Completed!
+                            🎉 Time's Up! Habit Completed!
                         </p>
                     </div>
                 )}
 
                 {/* Controls */}
                 <div className="flex gap-3 justify-center">
-                    {!isRunning && !isCompleted && elapsedSeconds === 0 && (
+                    {!isRunning && !isCompleted && remainingSeconds === targetSeconds && (
                         <button
                             onClick={() => setIsRunning(true)}
                             className="px-10 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-2xl transition-all font-bold text-lg flex items-center gap-3 shadow-lg hover:shadow-xl transform hover:scale-105"
@@ -154,7 +153,7 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
                         </button>
                     )}
 
-                    {!isRunning && elapsedSeconds > 0 && !isCompleted && (
+                    {!isRunning && remainingSeconds < targetSeconds && !isCompleted && (
                         <button
                             onClick={() => setIsRunning(true)}
                             className="px-10 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-2xl transition-all font-bold text-lg flex items-center gap-3 shadow-lg hover:shadow-xl transform hover:scale-105"
@@ -164,7 +163,7 @@ export const Stopwatch: React.FC<StopwatchProps> = ({
                         </button>
                     )}
 
-                    {elapsedSeconds > 0 && !isCompleted && (
+                    {remainingSeconds < targetSeconds && !isCompleted && (
                         <button
                             onClick={handleReset}
                             className="px-8 py-4 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-2xl transition-all font-bold text-lg flex items-center gap-3 shadow-md hover:shadow-lg"
