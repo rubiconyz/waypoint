@@ -114,17 +114,20 @@ export const HabitList: React.FC<HabitListProps> = ({
     setEditCategory(habit.category);
     setEditFrequencyType(habit.frequency.type);
     setEditCustomDays(habit.frequency.days || []);
+    setEditTargetDuration(habit.targetDuration ? habit.targetDuration.toString() : '');
   };
 
   const saveEditing = (id: string) => {
     if (editTitle.trim()) {
+      const duration = editTargetDuration ? parseInt(editTargetDuration) : undefined;
       onEditHabit(id, {
         title: editTitle,
         category: editCategory,
         frequency: {
           type: editFrequencyType,
           days: editFrequencyType === 'custom' ? editCustomDays : []
-        }
+        },
+        ...(duration !== undefined && { targetDuration: duration })
       });
       setEditingId(null);
     }
