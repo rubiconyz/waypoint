@@ -4,10 +4,20 @@ import { Analytics } from './components/Analytics';
 import { Badges } from './components/Badges';
 import { BadgeNotification } from './components/BadgeComponents';
 import { MountainClimber } from './components/MountainClimber';
+import { AuthModal } from './components/AuthModal';
 import { Habit, HabitFrequency, Badge, BadgeProgress } from './types';
 import { checkBadgeUnlocks } from './badges';
-import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain } from 'lucide-react';
+import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, User } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { useAuth } from './contexts/AuthContext';
+import {
+  saveHabitsToFirestore,
+  loadHabitsFromFirestore,
+  saveBadgeProgressToFirestore,
+  loadBadgeProgressFromFirestore,
+  saveTotalHabitsToFirestore,
+  loadTotalHabitsFromFirestore
+} from './services/firestoreService';
 
 const STORAGE_KEY = 'habitvision_data';
 const THEME_KEY = 'habitvision_theme';
@@ -122,6 +132,8 @@ const calculatePerfectDayStreak = (habits: Habit[]) => {
 };
 
 const App: React.FC = () => {
+  const { user, loading: authLoading, logout } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'tracker' | 'analytics' | 'badges' | 'mountain'>('tracker');
   // Initialize habits directly from localStorage to avoid race condition
   const [habits, setHabits] = useState<Habit[]>(() => {
@@ -225,6 +237,74 @@ const App: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
   }, []);
+
+  // Firebase Sync - Load data when user logs in
+  useEffect(() => {
+    if (!user || authLoading) return;
+
+    const loadFromFirestore = async () => {
+      try {
+        // Load all data from Firestore
+        const [firestoreHabits, firestoreBadges, firestoreTotal] = await Promise.all([
+          loadHabitsFromFirestore(user.uid),
+          loadBadgeProgressFromFirestore(user.uid),
+          loadTotalHabitsFromFirestore(user.uid)
+        ]);
+
+        // If Firestore has data, use it (cloud is source of truth)
+        if (firestoreHabits && firestoreHabits.length > 0) {
+          setHabits(firestoreHabits);
+          if (firestoreBadges) setBadgeProgress(firestoreBadges);
+          if (firestoreTotal) setTotalHabitsCreated(firestoreTotal);
+        } else {
+          // First login - migrate localStorage data to Firestore
+          const localHabits = habits;
+          const localBadges = badgeProgress;
+          const localTotal = totalHabitsCreated;
+
+          if (localHabits.length > 0) {
+            await saveHabitsToFirestore(user.uid, localHabits);
+            await saveBadgeProgressToFirestore(user.uid, localBadges);
+            await saveTotalHabitsToFirestore(user.uid, localTotal);
+          }
+        }
+      } catch (error) {
+        console.error('Error syncing with Firestore:', error);
+      }
+    };
+
+    loadFromFirestore();
+  }, [user, authLoading]);
+
+  // Save to Firestore when data changes (if user is logged in)
+  useEffect(() => {
+    if (!user || authLoading) return;
+
+    const saveToFirestore = async () => {
+      try {
+        await saveHabitsToFirestore(user.uid, habits);
+      } catch (error) {
+        console.error('Error saving habits to Firestore:', error);
+      }
+    };
+
+    saveToFirestore();
+  }, [habits, user, authLoading]);
+
+  useEffect(() => {
+    if (!user || authLoading) return;
+
+    const saveBadgesToFirestore = async () => {
+      try {
+        await saveBadgeProgressToFirestore(user.uid, badgeProgress);
+        await saveTotalHabitsToFirestore(user.uid, totalHabitsCreated);
+      } catch (error) {
+        console.error('Error saving badges to Firestore:', error);
+      }
+    };
+
+    saveBadgesToFirestore();
+  }, [badgeProgress, totalHabitsCreated, user, authLoading]);
 
 
 
@@ -443,6 +523,29 @@ const App: React.FC = () => {
               </span>
             )}
 
+            {user ? (
+              <div className="flex items-center gap-2">
+                <span className="hidden sm:inline text-sm text-gray-600 dark:text-gray-400">
+                  {user.email}
+                </span>
+                <button
+                  onClick={logout}
+                  className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                  title="Logout"
+                >
+                  <LogOut size={20} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
+              >
+                <User size={16} />
+                <span className="hidden sm:inline">Sign In</span>
+              </button>
+            )}
+
             <button onClick={toggleTheme} className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
@@ -532,6 +635,11 @@ const App: React.FC = () => {
           badge={newlyUnlockedBadge}
           onClose={() => setNewlyUnlockedBadge(null)}
         />
+      )}
+
+      {/* Auth Modal */}
+      {showAuthModal && !user && (
+        <AuthModal onClose={() => setShowAuthModal(false)} />
       )}
     </div>
   );
