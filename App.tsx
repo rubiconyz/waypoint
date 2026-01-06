@@ -274,20 +274,28 @@ const App: React.FC = () => {
   // Sound effects using Web Audio API
   const playCompletionSound = () => {
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
 
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+    // Classic "correct answer" sound - two quick ascending notes
+    const playNote = (frequency: number, startTime: number) => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
 
-    oscillator.frequency.value = 880; // A5 - pleasant high ding
-    oscillator.type = 'sine';
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
 
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      oscillator.frequency.value = frequency;
+      oscillator.type = 'sine';
 
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.3);
+      gainNode.gain.setValueAtTime(0.25, startTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.1);
+
+      oscillator.start(startTime);
+      oscillator.stop(startTime + 0.1);
+    };
+
+    const now = audioContext.currentTime;
+    playNote(523.25, now);       // C5 (first note)
+    playNote(659.25, now + 0.08); // E5 (second note, slightly higher)
   };
 
   const playPartialSound = () => {
