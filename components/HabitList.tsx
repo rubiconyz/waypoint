@@ -144,8 +144,15 @@ export const HabitList: React.FC<HabitListProps> = ({
   };
 
   // Drag and drop handlers
-  const handleDragStart = (index: number) => {
+  const handleDragStart = (e: React.DragEvent, index: number, habitRef: HTMLDivElement | null) => {
     setDraggedIndex(index);
+
+    // Set the entire habit card as the drag image
+    if (habitRef) {
+      e.dataTransfer.effectAllowed = 'move';
+      // Create a semi-transparent copy for the drag preview
+      e.dataTransfer.setDragImage(habitRef, habitRef.offsetWidth / 2, habitRef.offsetHeight / 2);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
@@ -382,9 +389,13 @@ export const HabitList: React.FC<HabitListProps> = ({
               );
             }
 
+            // Create a ref for this habit card
+            const habitRef = useRef<HTMLDivElement>(null);
+
             return (
               <div
                 key={habit.id}
+                ref={habitRef}
                 onDragOver={(e) => handleDragOver(e, index)}
                 className={`flex items-center justify-between p-4 bg-white dark:bg-gray-900 rounded-xl border transition-all group relative ${isDragging
                   ? 'opacity-50 scale-95'
@@ -399,7 +410,7 @@ export const HabitList: React.FC<HabitListProps> = ({
                   {/* Drag Handle */}
                   <div
                     draggable
-                    onDragStart={() => handleDragStart(index)}
+                    onDragStart={(e) => handleDragStart(e, index, habitRef.current)}
                     onDragEnd={handleDragEnd}
                     className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                     title="Drag to reorder"
