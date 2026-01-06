@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Habit, HabitFrequency } from '../types';
-import { Check, Plus, Trash2, Flame, Pencil, X, Save, MoreVertical, SkipForward, PieChart, GripVertical } from 'lucide-react';
+import { Check, Plus, Trash2, Flame, Pencil, X, Save, MoreVertical, SkipForward, PieChart, GripVertical, Timer } from 'lucide-react';
+import { Stopwatch } from './Stopwatch';
 
 interface HabitListProps {
   habits: Habit[];
   onUpdateStatus: (id: string, date: string, status: 'completed' | 'partial' | 'skipped' | null) => void;
-  onAddHabit: (title: string, category: string, frequency: HabitFrequency) => void;
+  onAddHabit: (title: string, category: string, frequency: HabitFrequency, targetDuration?: number) => void;
   onEditHabit: (id: string, updates: Partial<Habit>) => void;
   onDeleteHabit: (id: string) => void;
   onReorderHabits: (reorderedHabits: Habit[]) => void;
@@ -45,6 +46,7 @@ export const HabitList: React.FC<HabitListProps> = ({
   const [newHabitCategory, setNewHabitCategory] = useState(CATEGORIES[0]);
   const [newFrequencyType, setNewFrequencyType] = useState<'daily' | 'weekly' | 'custom'>('daily');
   const [newCustomDays, setNewCustomDays] = useState<number[]>([1, 2, 3, 4, 5]); // Mon-Fri default
+  const [newTargetDuration, setNewTargetDuration] = useState<string>(''); // Optional target duration in minutes
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -54,12 +56,16 @@ export const HabitList: React.FC<HabitListProps> = ({
   const [editCategory, setEditCategory] = useState('');
   const [editFrequencyType, setEditFrequencyType] = useState<'daily' | 'weekly' | 'custom'>('daily');
   const [editCustomDays, setEditCustomDays] = useState<number[]>([]);
+  const [editTargetDuration, setEditTargetDuration] = useState<string>(''); // Optional target duration
 
   // Context Menu State
   const [contextMenu, setContextMenu] = useState<{ id: string, x: number, y: number } | null>(null);
 
   // Drag and drop state
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  // Stopwatch state
+  const [stopwatchHabitId, setStopwatchHabitId] = useState<string | null>(null);
 
   const today = getLocalDateString(new Date());
   const contextMenuRef = useRef<HTMLDivElement>(null);
@@ -89,11 +95,13 @@ export const HabitList: React.FC<HabitListProps> = ({
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (newHabitTitle.trim()) {
+      const duration = newTargetDuration ? parseInt(newTargetDuration) : undefined;
       onAddHabit(newHabitTitle, newHabitCategory, {
         type: newFrequencyType,
         days: newFrequencyType === 'custom' ? newCustomDays : []
-      });
+      }, duration);
       setNewHabitTitle('');
+      setNewTargetDuration('');
       setIsAdding(false);
       setNewFrequencyType('daily');
       setNewCustomDays([1, 2, 3, 4, 5]);
@@ -275,6 +283,24 @@ export const HabitList: React.FC<HabitListProps> = ({
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Target Duration (Optional) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
+                  Target Duration (Optional) ⏱️
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={newTargetDuration}
+                  onChange={(e) => setNewTargetDuration(e.target.value)}
+                  placeholder="e.g., 30 minutes"
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg text-sm"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Add a timer for this habit (in minutes)
+                </p>
               </div>
             </div>
 
@@ -465,6 +491,22 @@ export const HabitList: React.FC<HabitListProps> = ({
                   </div>
 
                   <div className="flex items-center gap-1">
+                    {/* Timer button - only show if habit has targetDuration */}
+                    {habit.targetDuration && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setStopwatchHabitId(habit.id);
+                        }}
+                        className="relative z-10 text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        title={`Start ${habit.targetDuration} min timer`}
+                      >
+                        <Timer size={18} />
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       onClick={(e) => {
@@ -531,6 +573,24 @@ export const HabitList: React.FC<HabitListProps> = ({
           </button>
         </div>
       )}
+
+      {/* Stopwatch Modal */}
+      {stopwatchHabitId && (() => {
+        const habit = habits.find(h => h.id === stopwatchHabitId);
+        if (!habit || !habit.targetDuration) return null;
+
+        return (
+          <Stopwatch
+            habitTitle={habit.title}
+            targetDuration={habit.targetDuration}
+            onComplete={() => {
+              // Auto-complete the habit when timer finishes
+              onUpdateStatus(habit.id, today, 'completed');
+            }}
+            onClose={() => setStopwatchHabitId(null)}
+          />
+        );
+      })()}
     </div>
   );
 };

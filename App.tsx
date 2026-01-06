@@ -449,7 +449,7 @@ const App: React.FC = () => {
     }));
   };
 
-  const addHabit = (title: string, category: string, frequency: HabitFrequency) => {
+  const addHabit = (title: string, category: string, frequency: HabitFrequency, targetDuration?: number) => {
     const newHabit: Habit = {
       id: Date.now().toString(),
       title,
@@ -457,7 +457,8 @@ const App: React.FC = () => {
       streak: 0,
       history: {},
       frequency,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      ...(targetDuration && { targetDuration })
     };
     setHabits([...habits, newHabit]);
 

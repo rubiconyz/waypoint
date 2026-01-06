@@ -17,6 +17,7 @@ export interface Habit {
   frequency: HabitFrequency;
   history: HabitHistory;
   createdAt: string; // ISO timestamp - prevents retroactive badge exploitation
+  targetDuration?: number; // Optional target duration in minutes for timed habits
   completedDates?: string[]; // Deprecated
 }
 
