@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Play, Pause, RotateCcw } from 'lucide-react';
 
 interface TimerProps {
@@ -18,6 +18,15 @@ export const Timer: React.FC<TimerProps> = ({
     const [remainingSeconds, setRemainingSeconds] = useState(targetDuration * 60);
     const [isCompleted, setIsCompleted] = useState(false);
 
+    // Use refs to avoid recreating interval when callbacks change
+    const onCompleteRef = useRef(onComplete);
+    const onCloseRef = useRef(onClose);
+
+    useEffect(() => {
+        onCompleteRef.current = onComplete;
+        onCloseRef.current = onClose;
+    }, [onComplete, onClose]);
+
     const targetSeconds = targetDuration * 60;
     const elapsedSeconds = targetSeconds - remainingSeconds;
     const progress = Math.min((elapsedSeconds / targetSeconds) * 100, 100);
@@ -31,9 +40,9 @@ export const Timer: React.FC<TimerProps> = ({
                 if (newValue <= 0) {
                     setIsRunning(false);
                     setIsCompleted(true);
-                    onComplete();
+                    onCompleteRef.current();
                     // Auto-close after 3 seconds
-                    setTimeout(() => onClose(), 3000);
+                    setTimeout(() => onCloseRef.current(), 3000);
                     return 0;
                 }
                 return newValue;
@@ -41,7 +50,7 @@ export const Timer: React.FC<TimerProps> = ({
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [isRunning, isCompleted, onComplete, onClose]);
+    }, [isRunning, isCompleted]); // Removed onComplete and onClose from dependencies
 
     const formatTime = (seconds: number): string => {
         const mins = Math.floor(seconds / 60);
