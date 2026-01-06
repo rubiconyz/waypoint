@@ -150,8 +150,9 @@ export const HabitList: React.FC<HabitListProps> = ({
     // Set the entire habit card as the drag image
     if (habitRef) {
       e.dataTransfer.effectAllowed = 'move';
-      // Create a semi-transparent copy for the drag preview
-      e.dataTransfer.setDragImage(habitRef, habitRef.offsetWidth / 2, habitRef.offsetHeight / 2);
+      // Grab from the left edge (where the handle is) instead of center
+      // 30px offset puts cursor roughly at the handle position
+      e.dataTransfer.setDragImage(habitRef, 30, habitRef.offsetHeight / 2);
     }
   };
 
