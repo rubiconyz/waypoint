@@ -155,18 +155,6 @@ export const HabitList: React.FC<HabitListProps> = ({
   };
 
   // Drag and drop handlers
-  const handleDragStart = (e: React.DragEvent, index: number, habitRef: HTMLDivElement | null) => {
-    setDraggedIndex(index);
-
-    // Set the entire habit card as the drag image
-    if (habitRef) {
-      e.dataTransfer.effectAllowed = 'move';
-      // Grab from the left edge (where the handle is) instead of center
-      // 30px offset puts cursor roughly at the handle position
-      e.dataTransfer.setDragImage(habitRef, 30, habitRef.offsetHeight / 2);
-    }
-  };
-
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     if (draggedIndex === null || draggedIndex === index) return;
@@ -419,28 +407,30 @@ export const HabitList: React.FC<HabitListProps> = ({
               );
             }
 
-            // Create a ref for this habit card
-            const habitRef = useRef<HTMLDivElement>(null);
-
             return (
               <div
                 key={habit.id}
-                ref={habitRef}
                 onDragOver={(e) => handleDragOver(e, index)}
                 className={`flex items-center justify-between p-4 bg-white dark:bg-gray-900 rounded-xl border transition-all group relative ${isDragging
                   ? 'opacity-50 scale-95'
-                  : status === 'completed'
-                    ? 'border-green-200 dark:border-green-900 shadow-sm'
-                    : status === 'skipped'
-                      ? 'border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50'
-                      : 'border-gray-100 dark:border-gray-800 shadow-sm hover:border-gray-200 dark:hover:border-gray-700'
+                  : 'hover:shadow-lg hover:border-indigo-200 dark:hover:border-indigo-800'
+                  } ${status === 'completed'
+                    ? 'border-green-200 dark:border-green-900 bg-green-50/30 dark:bg-green-900/10'
+                    : status === 'partial'
+                      ? 'border-yellow-200 dark:border-yellow-900 bg-yellow-50/30 dark:bg-yellow-900/10'
+                      : status === 'skipped'
+                        ? 'border-gray-200 dark:border-gray-700'
+                        : 'border-gray-200 dark:border-gray-800'
                   }`}
               >
                 <div className="flex items-center gap-4">
                   {/* Drag Handle */}
                   <div
                     draggable
-                    onDragStart={(e) => handleDragStart(e, index, habitRef.current)}
+                    onDragStart={(e) => {
+                      setDraggedIndex(index);
+                      e.dataTransfer.effectAllowed = 'move';
+                    }}
                     onDragEnd={handleDragEnd}
                     className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                     title="Drag to reorder"
