@@ -523,11 +523,24 @@ const App: React.FC = () => {
               </span>
             )}
 
+
             {user ? (
               <div className="flex items-center gap-2">
-                <span className="hidden sm:inline text-sm text-gray-600 dark:text-gray-400">
-                  {user.email}
-                </span>
+                {/* User Avatar */}
+                {user.photoURL ? (
+                  // Google profile photo
+                  <img
+                    src={user.photoURL}
+                    alt="Profile"
+                    className="w-8 h-8 rounded-full border-2 border-indigo-500"
+                  />
+                ) : (
+                  // Email initial for email/password sign-in
+                  <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-semibold text-sm border-2 border-indigo-500">
+                    {user.email?.[0].toUpperCase()}
+                  </div>
+                )}
+
                 <button
                   onClick={logout}
                   className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
