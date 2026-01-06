@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Habit, HabitFrequency } from '../types';
-import { Check, Plus, Trash2, Flame, Pencil, X, Save, MoreVertical, SkipForward, PieChart } from 'lucide-react';
+import { Check, Plus, Trash2, Flame, Pencil, X, Save, MoreVertical, SkipForward, PieChart, GripVertical } from 'lucide-react';
 
 interface HabitListProps {
   habits: Habit[];
@@ -385,11 +385,8 @@ export const HabitList: React.FC<HabitListProps> = ({
             return (
               <div
                 key={habit.id}
-                draggable
-                onDragStart={() => handleDragStart(index)}
                 onDragOver={(e) => handleDragOver(e, index)}
-                onDragEnd={handleDragEnd}
-                className={`flex items-center justify-between p-4 bg-white dark:bg-gray-900 rounded-xl border transition-all group relative cursor-move ${isDragging
+                className={`flex items-center justify-between p-4 bg-white dark:bg-gray-900 rounded-xl border transition-all group relative ${isDragging
                   ? 'opacity-50 scale-95'
                   : status === 'completed'
                     ? 'border-green-200 dark:border-green-900 shadow-sm'
@@ -399,6 +396,17 @@ export const HabitList: React.FC<HabitListProps> = ({
                   }`}
               >
                 <div className="flex items-center gap-4">
+                  {/* Drag Handle */}
+                  <div
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragEnd={handleDragEnd}
+                    className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    title="Drag to reorder"
+                  >
+                    <GripVertical size={18} />
+                  </div>
+
                   <button
                     onClick={() => onUpdateStatus(habit.id, today, status === 'completed' ? null : 'completed')}
                     onContextMenu={(e) => handleContextMenu(e, habit.id)}
