@@ -13,6 +13,17 @@ interface HabitListProps {
 const CATEGORIES = ['Fitness', 'Learning', 'Mindfulness', 'Health', 'Reading', 'Work'];
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
+// Category emoji mapping
+const CATEGORY_EMOJIS: Record<string, string> = {
+  'Fitness': '💪',
+  'Learning': '📚',
+  'Mindfulness': '🧘',
+  'Health': '❤️',
+  'Reading': '📖',
+  'Work': '💼'
+};
+
+
 // Helper function to get date string in local timezone (YYYY-MM-DD)
 const getLocalDateString = (date: Date): string => {
   const year = date.getFullYear();
@@ -372,10 +383,11 @@ export const HabitList: React.FC<HabitListProps> = ({
                   </button>
 
                   <div>
-                    <h3 className={`font-medium transition-colors ${status === 'completed'
+                    <h3 className={`font-medium transition-colors flex items-center gap-2 ${status === 'completed'
                       ? 'text-gray-400 dark:text-gray-500 line-through'
                       : 'text-gray-800 dark:text-gray-200'
                       }`}>
+                      <span className="text-lg">{CATEGORY_EMOJIS[habit.category] || '📌'}</span>
                       {habit.title}
                     </h3>
                     <p className="text-xs flex items-center gap-1 mt-0.5">
