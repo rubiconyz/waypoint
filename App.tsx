@@ -210,8 +210,7 @@ const App: React.FC = () => {
   // Mountain Game State
   const [coins, setCoins] = useState(() => {
     const saved = localStorage.getItem(COINS_KEY);
-    // Retroactive: If no coins saved, give them coins equal to total habits created (generous start)
-    return saved ? parseInt(saved, 10) : totalHabitsCreated;
+    return saved ? parseInt(saved, 10) : 0;
   });
 
   const [unlockedCheckpoints, setUnlockedCheckpoints] = useState<number[]>(() => {
