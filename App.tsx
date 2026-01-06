@@ -397,6 +397,11 @@ const App: React.FC = () => {
     setHabits(prev => prev.filter(h => String(h.id) !== String(id)));
   };
 
+  const reorderHabits = (reorderedHabits: Habit[]) => {
+    setHabits(reorderedHabits);
+  };
+
+
   const toggleTheme = () => {
     const newMode = !isDarkMode;
     setIsDarkMode(newMode);
@@ -474,6 +479,7 @@ const App: React.FC = () => {
                 onAddHabit={addHabit}
                 onEditHabit={editHabit}
                 onDeleteHabit={deleteHabit}
+                onReorderHabits={reorderHabits}
               />
             </div>
             <div className="space-y-6">

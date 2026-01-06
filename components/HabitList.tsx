@@ -8,6 +8,7 @@ interface HabitListProps {
   onAddHabit: (title: string, category: string, frequency: HabitFrequency) => void;
   onEditHabit: (id: string, updates: Partial<Habit>) => void;
   onDeleteHabit: (id: string) => void;
+  onReorderHabits: (reorderedHabits: Habit[]) => void;
 }
 
 const CATEGORIES = ['Fitness', 'Learning', 'Mindfulness', 'Health', 'Reading', 'Work'];
@@ -37,7 +38,8 @@ export const HabitList: React.FC<HabitListProps> = ({
   onUpdateStatus,
   onAddHabit,
   onEditHabit,
-  onDeleteHabit
+  onDeleteHabit,
+  onReorderHabits
 }) => {
   const [newHabitTitle, setNewHabitTitle] = useState('');
   const [newHabitCategory, setNewHabitCategory] = useState(CATEGORIES[0]);
@@ -55,6 +57,9 @@ export const HabitList: React.FC<HabitListProps> = ({
 
   // Context Menu State
   const [contextMenu, setContextMenu] = useState<{ id: string, x: number, y: number } | null>(null);
+
+  // Drag and drop state
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const today = getLocalDateString(new Date());
   const contextMenuRef = useRef<HTMLDivElement>(null);
@@ -137,6 +142,29 @@ export const HabitList: React.FC<HabitListProps> = ({
         : [...prev, dayIndex].sort()
     );
   };
+
+  // Drag and drop handlers
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+
+    const newHabits = [...habits];
+    const draggedHabit = newHabits[draggedIndex];
+    newHabits.splice(draggedIndex, 1);
+    newHabits.splice(index, 0, draggedHabit);
+
+    onReorderHabits(newHabits);
+    setDraggedIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
 
   return (
     <div className="space-y-6 relative">
@@ -267,9 +295,10 @@ export const HabitList: React.FC<HabitListProps> = ({
             <p className="text-gray-500 dark:text-gray-400">No habits yet. Start by adding one!</p>
           </div>
         ) : (
-          habits.map((habit) => {
+          habits.map((habit, index) => {
             const status = habit.history[today];
             const isEditing = editingId === habit.id;
+            const isDragging = draggedIndex === index;
 
             if (isEditing) {
               return (
@@ -356,11 +385,17 @@ export const HabitList: React.FC<HabitListProps> = ({
             return (
               <div
                 key={habit.id}
-                className={`flex items-center justify-between p-4 bg-white dark:bg-gray-900 rounded-xl border transition-all group relative ${status === 'completed'
-                  ? 'border-green-200 dark:border-green-900 shadow-sm'
-                  : status === 'skipped'
-                    ? 'border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50'
-                    : 'border-gray-100 dark:border-gray-800 shadow-sm hover:border-gray-200 dark:hover:border-gray-700'
+                draggable
+                onDragStart={() => handleDragStart(index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragEnd={handleDragEnd}
+                className={`flex items-center justify-between p-4 bg-white dark:bg-gray-900 rounded-xl border transition-all group relative cursor-move ${isDragging
+                  ? 'opacity-50 scale-95'
+                  : status === 'completed'
+                    ? 'border-green-200 dark:border-green-900 shadow-sm'
+                    : status === 'skipped'
+                      ? 'border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50'
+                      : 'border-gray-100 dark:border-gray-800 shadow-sm hover:border-gray-200 dark:hover:border-gray-700'
                   }`}
               >
                 <div className="flex items-center gap-4">
