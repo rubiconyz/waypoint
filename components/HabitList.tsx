@@ -284,9 +284,9 @@ export const HabitList: React.FC<HabitListProps> = ({
                 <input
                   type="number"
                   min="0"
-                  step="1"
                   value={newTargetDuration}
                   onChange={(e) => setNewTargetDuration(e.target.value)}
+                  onFocus={(e) => e.target.select()}
                   placeholder="e.g., 30 minutes (0 to remove)"
                   className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg text-sm"
                 />
@@ -406,9 +406,9 @@ export const HabitList: React.FC<HabitListProps> = ({
                       <input
                         type="number"
                         min="0"
-                        step="1"
                         value={editTargetDuration}
                         onChange={(e) => setEditTargetDuration(e.target.value)}
+                        onFocus={(e) => e.target.select()}
                         placeholder="e.g., 30 minutes (0 to remove)"
                         className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg text-sm"
                       />

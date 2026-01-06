@@ -16,7 +16,8 @@ import {
   saveBadgeProgressToFirestore,
   loadBadgeProgressFromFirestore,
   saveTotalHabitsToFirestore,
-  loadTotalHabitsFromFirestore
+  loadTotalHabitsFromFirestore,
+  deleteHabitFromFirestore
 } from './services/firestoreService';
 
 const STORAGE_KEY = 'habitvision_data';
@@ -474,7 +475,14 @@ const App: React.FC = () => {
     ));
   };
 
-  const deleteHabit = (id: string) => {
+  const deleteHabit = async (id: string) => {
+    if (user) {
+      try {
+        await deleteHabitFromFirestore(user.uid, id);
+      } catch (error) {
+        console.error('Error deleting habit from Firestore:', error);
+      }
+    }
     setHabits(prev => prev.filter(h => String(h.id) !== String(id)));
   };
 

@@ -5,7 +5,8 @@ import {
     getDoc,
     getDocs,
     onSnapshot,
-    writeBatch
+    writeBatch,
+    deleteDoc
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Habit, BadgeProgress } from '../types';
@@ -20,6 +21,12 @@ export const saveHabitsToFirestore = async (userId: string, habits: Habit[]) => 
     });
 
     await batch.commit();
+};
+
+// Delete habit from Firestore
+export const deleteHabitFromFirestore = async (userId: string, habitId: string) => {
+    const habitRef = doc(db, `users/${userId}/habits/${habitId}`);
+    await deleteDoc(habitRef);
 };
 
 // Load habits from Firestore
