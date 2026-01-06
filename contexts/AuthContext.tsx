@@ -49,7 +49,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const signIn = async (email: string, password: string) => {
-        await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+
+        // Check if email is verified (only for email/password users)
+        if (userCredential.user.providerData[0]?.providerId === 'password' && !userCredential.user.emailVerified) {
+            // Sign them out and throw error
+            await signOut(auth);
+            throw new Error('Please verify your email before signing in. Check your inbox for the verification link.');
+        }
     };
 
     const signInWithGoogle = async () => {

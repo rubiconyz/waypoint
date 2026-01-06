@@ -7,7 +7,7 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
-    const { signIn, signUp, signInWithGoogle } = useAuth();
+    const { signIn, signUp, signInWithGoogle, logout } = useAuth();
     const [isSignUp, setIsSignUp] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -23,11 +23,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
         try {
             if (isSignUp) {
                 await signUp(email, password);
+                // Sign out immediately after signup to force verification
+                await logout();
                 setVerificationSent(true);
                 // Auto-close after showing message
                 setTimeout(() => onClose(), 5000);
             } else {
-                await signIn(email, password);
+                // Check if email is verified on sign in
+                const userCredential = await signIn(email, password);
                 onClose();
             }
         } catch (err: any) {
