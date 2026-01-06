@@ -274,29 +274,20 @@ const App: React.FC = () => {
   // Sound effects using Web Audio API
   const playCompletionSound = () => {
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
 
-    // Play 3 ascending notes for a success chime (C5 -> E5 -> G5)
-    const playNote = (frequency: number, startTime: number, duration: number) => {
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
 
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
+    oscillator.frequency.value = 880; // A5 - pleasant high ding
+    oscillator.type = 'sine';
 
-      oscillator.frequency.value = frequency;
-      oscillator.type = 'sine';
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
 
-      gainNode.gain.setValueAtTime(0.2, startTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-
-      oscillator.start(startTime);
-      oscillator.stop(startTime + duration);
-    };
-
-    const now = audioContext.currentTime;
-    playNote(523.25, now, 0.15);        // C5
-    playNote(659.25, now + 0.1, 0.15);  // E5
-    playNote(783.99, now + 0.2, 0.25);  // G5 (longer for resolution)
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.3);
   };
 
   const playPartialSound = () => {
