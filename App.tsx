@@ -275,7 +275,7 @@ const App: React.FC = () => {
     };
 
     loadFromFirestore();
-  }, [user, authLoading]);
+  }, [user?.uid, authLoading]);
 
   // Save to Firestore when data changes (if user is logged in)
   useEffect(() => {
@@ -290,7 +290,7 @@ const App: React.FC = () => {
     };
 
     saveToFirestore();
-  }, [habits, user, authLoading]);
+  }, [habits, user?.uid, authLoading]);
 
   useEffect(() => {
     if (!user || authLoading) return;
@@ -305,7 +305,7 @@ const App: React.FC = () => {
     };
 
     saveBadgesToFirestore();
-  }, [badgeProgress, totalHabitsCreated, user, authLoading]);
+  }, [badgeProgress, totalHabitsCreated, user?.uid, authLoading]);
 
 
 
@@ -476,6 +476,9 @@ const App: React.FC = () => {
   };
 
   const deleteHabit = async (id: string) => {
+    // Optimistic update: Remove locally immediately
+    setHabits(prev => prev.filter(h => String(h.id) !== String(id)));
+
     if (user) {
       try {
         await deleteHabitFromFirestore(user.uid, id);
@@ -483,7 +486,6 @@ const App: React.FC = () => {
         console.error('Error deleting habit from Firestore:', error);
       }
     }
-    setHabits(prev => prev.filter(h => String(h.id) !== String(id)));
   };
 
   const reorderHabits = (reorderedHabits: Habit[]) => {
