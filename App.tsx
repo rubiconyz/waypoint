@@ -174,26 +174,8 @@ const App: React.FC = () => {
       }
     }
     // Return default habits if no saved data
-    return [
-      {
-        id: '1',
-        title: 'Morning Meditation',
-        category: 'Mindfulness',
-        streak: 0,
-        history: {},
-        frequency: { type: 'daily', days: [] },
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: '2',
-        title: 'Gym (Mon/Wed/Fri)',
-        category: 'Health',
-        streak: 0,
-        history: {},
-        frequency: { type: 'custom', days: [1, 3, 5] },
-        createdAt: new Date().toISOString()
-      }
-    ];
+    // Return empty array if no saved data (clean slate for new users)
+    return [];
   });
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
