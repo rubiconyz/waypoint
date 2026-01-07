@@ -7,9 +7,10 @@ import { MountainClimber } from './components/MountainClimber';
 import { AuthModal } from './components/AuthModal';
 import { Habit, HabitFrequency, Badge, BadgeProgress } from './types';
 import { checkBadgeUnlocks } from './badges';
-import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, User } from 'lucide-react';
+import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, User, Menu, Command, Plus } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useAuth } from './contexts/AuthContext';
+import { SettingsSidebar } from './components/SettingsSidebar';
 import {
   saveHabitsToFirestore,
   loadHabitsFromFirestore,
@@ -138,6 +139,73 @@ const App: React.FC = () => {
   const { user, loading: authLoading, logout } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'tracker' | 'analytics' | 'badges' | 'mountain'>('tracker');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Keyboard Shortcuts Effect
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Cmd (Mac) or Ctrl (Windows)
+      if (e.metaKey || e.ctrlKey) {
+
+        switch (e.key.toLowerCase()) {
+          case 'k':
+            e.preventDefault();
+            setIsSettingsOpen(prev => !prev);
+            break;
+          case 'd':
+            e.preventDefault();
+            // We need to access toggleTheme here, but it's defined later.
+            // Best to move toggleTheme definition UP or use a ref/trigger.
+            // Actually, we can just trigger the button click or duplicate logic for now since toggleTheme is simple.
+            // Better yet, let's just dispatch a custom event or define logic here?
+            // To keep it clean, let's just toggle state directly if possible, but isDarkMode is state.
+            // Let's rely on finding the button? No, that's brittle.
+            // Let's define the logic inline since it matches the effect dependency
+            setIsDarkMode(prev => {
+              const newMode = !prev;
+              localStorage.setItem(THEME_KEY, newMode ? 'dark' : 'light');
+              if (newMode) document.documentElement.classList.add('dark');
+              else document.documentElement.classList.remove('dark');
+              return newMode;
+            });
+            break;
+          case 'i':
+            e.preventDefault();
+            setActiveTab('tracker');
+            // Try to find the input first (if form is open)
+            const input = document.querySelector('input[placeholder="What do you want to track?"]') as HTMLInputElement;
+            if (input) {
+              input.focus();
+            } else {
+              // If form not open, click the "New Habit" button
+              const btn = document.getElementById('btn-new-habit');
+              if (btn) btn.click();
+            }
+            break;
+          case '1':
+            e.preventDefault();
+            setActiveTab('tracker');
+            break;
+          case '2':
+            e.preventDefault();
+            setActiveTab('analytics');
+            break;
+          case '3':
+            e.preventDefault();
+            setActiveTab('badges');
+            break;
+          case '4':
+            e.preventDefault();
+            setActiveTab('mountain');
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Initialize habits directly from localStorage to avoid race condition
   const [habits, setHabits] = useState<Habit[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -570,6 +638,8 @@ const App: React.FC = () => {
               </span>
             )}
 
+
+
             <button onClick={toggleTheme} className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
@@ -592,6 +662,8 @@ const App: React.FC = () => {
                 <span className="hidden sm:inline">Mountain</span>
               </button>
             </nav>
+
+
 
             {/* User Auth - Far Right */}
             {user ? (
@@ -628,6 +700,15 @@ const App: React.FC = () => {
                 <span className="hidden sm:inline">Sign In</span>
               </button>
             )}
+
+            {/* Quick Menu Handle (Shortcuts) - Far Right */}
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="ml-2 p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              title="Menu / Shortcuts (Cmd+K)"
+            >
+              <Menu size={20} />
+            </button>
           </div>
         </div>
       </header>
@@ -713,6 +794,12 @@ const App: React.FC = () => {
           />
         ) : null /* Fallback for unknown tab */}
       </main>
+
+      {/* Settings/Shortcuts Sidebar */}
+      <SettingsSidebar
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
 
       {/* Badge Notification */}
       {newlyUnlockedBadge && (
