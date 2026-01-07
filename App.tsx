@@ -11,6 +11,7 @@ import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, 
 import confetti from 'canvas-confetti';
 import { useAuth } from './contexts/AuthContext';
 import { SettingsSidebar } from './components/SettingsSidebar';
+import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 import {
   saveHabitsToFirestore,
   loadHabitsFromFirestore,
@@ -813,6 +814,8 @@ const App: React.FC = () => {
       {showAuthModal && !user && (
         <AuthModal onClose={() => setShowAuthModal(false)} />
       )}
+      {/* Vercel Analytics */}
+      <VercelAnalytics />
     </div>
   );
 };
