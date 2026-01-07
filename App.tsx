@@ -7,7 +7,7 @@ import { MountainClimber } from './components/MountainClimber';
 import { AuthModal } from './components/AuthModal';
 import { Habit, HabitFrequency, Badge, BadgeProgress } from './types';
 import { checkBadgeUnlocks } from './badges';
-import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, User, Menu, Command, Plus } from 'lucide-react';
+import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, User, Menu, Command, Plus, Coins } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useAuth } from './contexts/AuthContext';
 import { SettingsSidebar } from './components/SettingsSidebar';
@@ -742,19 +742,22 @@ const App: React.FC = () => {
               <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm transition-colors">
                 <h3 className="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
                   <div className="bg-yellow-100 dark:bg-yellow-900/40 p-1.5 rounded-lg">
-                    <Mountain size={18} className="text-yellow-600 dark:text-yellow-400" />
+                    <Coins size={18} className="text-yellow-600 dark:text-yellow-400" />
                   </div>
                   Available Funds
                 </h3>
-                <div className="flex items-baseline gap-2">
+                <div className="flex items-baseline gap-2 mb-1">
                   <span className="text-3xl font-bold text-gray-900 dark:text-white">{coins}</span>
                   <span className="text-gray-500 dark:text-gray-400 font-medium">Coins</span>
                 </div>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
+                  Earn 1 coin per habit completion
+                </p>
                 <button
                   onClick={() => setActiveTab('mountain')}
-                  className="w-full mt-4 py-2 text-sm text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-2 text-sm text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center justify-center gap-2"
                 >
-                  Spend Coins <Mountain size={14} />
+                  Spend Coins <Coins size={14} />
                 </button>
               </div>
 
