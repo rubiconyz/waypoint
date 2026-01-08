@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Habit, HabitFrequency } from '../types';
-import { Check, Plus, Trash2, Flame, Pencil, X, Save, MoreVertical, SkipForward, PieChart, GripVertical, Timer as TimerIcon } from 'lucide-react';
+import { Check, Plus, Trash2, Flame, Pencil, X, Save, MoreVertical, SkipForward, PieChart, GripVertical, Timer as TimerIcon, Dumbbell, BookOpen, Brain, Heart, Book, Briefcase, Pin } from 'lucide-react';
 import { Timer } from './Timer';
 
 interface HabitListProps {
@@ -15,14 +15,14 @@ interface HabitListProps {
 const CATEGORIES = ['Fitness', 'Learning', 'Mindfulness', 'Health', 'Reading', 'Work'];
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-// Category emoji mapping
-const CATEGORY_EMOJIS: Record<string, string> = {
-  'Fitness': '💪',
-  'Learning': '📚',
-  'Mindfulness': '🧘',
-  'Health': '❤️',
-  'Reading': '📖',
-  'Work': '💼'
+// Category icon mapping (Lucide icons)
+const CATEGORY_ICONS: Record<string, React.ReactNode> = {
+  'Fitness': <Dumbbell size={18} className="text-orange-500" />,
+  'Learning': <BookOpen size={18} className="text-blue-500" />,
+  'Mindfulness': <Brain size={18} className="text-purple-500" />,
+  'Health': <Heart size={18} className="text-red-500" />,
+  'Reading': <Book size={18} className="text-emerald-500" />,
+  'Work': <Briefcase size={18} className="text-slate-500" />
 };
 
 
@@ -482,7 +482,7 @@ export const HabitList: React.FC<HabitListProps> = ({
                       ? 'text-gray-400 dark:text-gray-500 line-through'
                       : 'text-gray-800 dark:text-gray-200'
                       }`}>
-                      <span className="text-lg">{CATEGORY_EMOJIS[habit.category] || '📌'}</span>
+                      <span className="flex-shrink-0">{CATEGORY_ICONS[habit.category] || <Pin size={18} className="text-gray-400" />}</span>
                       {habit.title}
                     </h3>
                     <p className="text-xs flex items-center gap-1 mt-0.5">
