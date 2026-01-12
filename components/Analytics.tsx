@@ -475,13 +475,15 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
       });
 
       totalScore += dailyScore;
-      totalOpportunities += activeHabitsOnDate.length;
-
       const dueHabits = activeHabitsOnDate.filter(h => {
         if (h.frequency.type === 'daily') return true;
         if (h.frequency.type === 'custom') return h.frequency.days.includes(d.getDay());
         return true;
       });
+
+      // Add to total opportunities based on DUE habits on that day
+      // Only count opportunities if the habit was actually scheduled
+      totalOpportunities += dueHabits.length;
 
       if (dueHabits.length > 0) {
         const allDone = dueHabits.every(h => h.history[date] === 'completed' || h.history[date] === 'skipped');
@@ -736,16 +738,23 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
                   return created <= dMidnight;
                 });
 
+                // Filter for DUE habits (Daily or Custom Day match)
+                const dueHabits = activeHabitsOnDay.filter(h => {
+                  if (h.frequency.type === 'daily') return true;
+                  if (h.frequency.type === 'custom') return h.frequency.days.includes(d.getDay());
+                  return true;
+                });
+
                 let completions = 0;
                 let partials = 0;
 
-                activeHabitsOnDay.forEach(h => {
+                dueHabits.forEach(h => {
                   if (h.history[dateStr] === 'completed') completions++;
                   else if (h.history[dateStr] === 'partial') partials++;
                 });
 
                 const totalScore = completions + (partials * 0.5);
-                const percentage = activeHabitsOnDay.length > 0 ? Math.round((totalScore / activeHabitsOnDay.length) * 100) : 0;
+                const percentage = dueHabits.length > 0 ? Math.round((totalScore / dueHabits.length) * 100) : 0;
 
                 last7Days.push({
                   date: dateStr,

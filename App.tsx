@@ -852,15 +852,7 @@ const App: React.FC = () => {
   const updateHabitStatus = (id: string, date: string, status: 'completed' | 'partial' | 'skipped' | null) => {
     // Play sound based on status
     if (status === 'completed') {
-      const targetHabit = habits.find(h => h.id === id);
-      if (targetHabit && targetHabit.title.toLowerCase().includes('german')) {
-        // EASTER EGG: Play German song
-        const audio = new Audio('/assets/song for german/German .mp3');
-        audio.volume = 0.5; // Reasonable volume
-        audio.play().catch(e => console.error("Could not play German easter egg:", e));
-      } else {
-        playCompletionSound();
-      }
+      playCompletionSound();
     } else if (status === 'partial') {
       playPartialSound();
     } else if (status === 'skipped') {
