@@ -445,26 +445,39 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
   // State for expanded habit detail
   const [expandedHabitId, setExpandedHabitId] = useState<string | null>(null);
 
-  // 1. Calculate Summary Metrics
   const summary = useMemo(() => {
     const totalHabits = habits.length;
     if (totalHabits === 0) return { completionRate: 0, perfectDays: 0, bestStreak: 0 };
 
     const dates = getLast30Days();
-    let totalOpportunities = totalHabits * dates.length;
+    let totalOpportunities = 0;
     let totalScore = 0;
     let perfectDaysCount = 0;
 
     dates.forEach(date => {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+
+      const activeHabitsOnDate = habits.filter(h => {
+        if (!h.createdAt) return true; // Legacy support
+        const created = new Date(h.createdAt);
+        created.setHours(0, 0, 0, 0);
+        return created <= d;
+      });
+
+      // Skip days where no habits existed yet
+      if (activeHabitsOnDate.length === 0) return;
+
       let dailyScore = 0;
-      habits.forEach(h => {
+      activeHabitsOnDate.forEach(h => {
         if (h.history[date] === 'completed') dailyScore += 1;
         else if (h.history[date] === 'partial') dailyScore += 0.5;
       });
-      totalScore += dailyScore;
 
-      const d = new Date(date);
-      const dueHabits = habits.filter(h => {
+      totalScore += dailyScore;
+      totalOpportunities += activeHabitsOnDate.length;
+
+      const dueHabits = activeHabitsOnDate.filter(h => {
         if (h.frequency.type === 'daily') return true;
         if (h.frequency.type === 'custom') return h.frequency.days.includes(d.getDay());
         return true;
@@ -473,7 +486,9 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
       if (dueHabits.length > 0) {
         const allDone = dueHabits.every(h => h.history[date] === 'completed' || h.history[date] === 'skipped');
         if (allDone) perfectDaysCount++;
-      } else if (habits.length > 0) {
+      } else {
+        // If habits existed but none were due, strictly speaking it's a perfect adherence day?
+        // Or null day. Let's count it as perfect to avoid penalizing off-days.
         perfectDaysCount++;
       }
     });
@@ -488,7 +503,27 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
       d.setDate(d.getDate() - i);
       const dateStr = getLocalDateString(d);
 
-      const dueHabits = habits.filter(h => {
+      // Also filter streak calculation by creation date
+      const activeForStreak = habits.filter(h => {
+        if (!h.createdAt) return true;
+        const created = new Date(h.createdAt);
+        created.setHours(0, 0, 0, 0);
+        return created <= d;
+      });
+
+      if (activeForStreak.length === 0) {
+        // Determine if we should break streak or continue?
+        // If no habits existed, streak logic is undefined. 
+        // Let's stop counting streak if we hit a date before ANY habit existed.
+        if (currentStreak > 0) {
+          // We reached the beginning of time for the user
+          if (currentStreak > maxGlobalStreak) maxGlobalStreak = currentStreak;
+          break;
+        }
+        continue;
+      }
+
+      const dueHabits = activeForStreak.filter(h => {
         if (h.frequency.type === 'daily') return true;
         if (h.frequency.type === 'custom') return h.frequency.days.includes(d.getDay());
         return true;
@@ -499,13 +534,17 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
       } else {
         const allDone = dueHabits.every(h => h.history[dateStr] === 'completed' || h.history[dateStr] === 'skipped');
         if (allDone) currentStreak++;
-        else currentStreak = 0;
+        else {
+          if (currentStreak > maxGlobalStreak) maxGlobalStreak = currentStreak;
+          currentStreak = 0;
+        }
       }
-      if (currentStreak > maxGlobalStreak) maxGlobalStreak = currentStreak;
     }
+    // Final check
+    if (currentStreak > maxGlobalStreak) maxGlobalStreak = currentStreak;
 
     return {
-      completionRate: Math.round((totalScore / totalOpportunities) * 100) || 0,
+      completionRate: totalOpportunities === 0 ? 0 : Math.round((totalScore / totalOpportunities) * 100),
       perfectDays: perfectDaysCount,
       bestStreak: maxGlobalStreak
     };
@@ -514,11 +553,31 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
   // 2. Generate Heatmap Data (Current Year Jan 1 - Dec 31)
   const heatmapData = useMemo(() => {
     const days = getYearDates();
+
+    // Pre-parse habit creation dates for efficiency
+    const habitCreationDates = habits.map(h => ({
+      ...h,
+      parsedCreatedAt: h.createdAt ? new Date(h.createdAt) : null
+    }));
+
+    // Normalize creation dates to midnight
+    habitCreationDates.forEach(h => {
+      if (h.parsedCreatedAt) h.parsedCreatedAt.setHours(0, 0, 0, 0);
+    });
+
     const data = days.map(date => {
       let dailyScore = 0;
-      const totalActive = habits.length;
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
 
-      habits.forEach(h => {
+      const activeHabits = habitCreationDates.filter(h => {
+        if (!h.parsedCreatedAt) return true;
+        return h.parsedCreatedAt <= d;
+      });
+
+      const totalActive = activeHabits.length;
+
+      activeHabits.forEach(h => {
         if (h.history[date] === 'completed') dailyScore += 1;
         else if (h.history[date] === 'partial') dailyScore += 0.5;
       });
