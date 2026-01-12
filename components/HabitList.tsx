@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Habit, HabitFrequency } from '../types';
-import { Check, Plus, Trash2, Flame, Pencil, X, Save, MoreVertical, SkipForward, PieChart, GripVertical, Timer as TimerIcon, Dumbbell, BookOpen, Brain, Heart, Book, Briefcase, Pin } from 'lucide-react';
+import { Check, Plus, Trash2, Flame, Pencil, X, Save, MoreVertical, SkipForward, PieChart, GripVertical, Timer as TimerIcon, Dumbbell, BookOpen, Brain, Heart, Book, Briefcase, Pin, ChevronLeft, ChevronRight, Star, Languages, Droplets, Footprints, Moon, Flower2, Coffee } from 'lucide-react';
 import { Timer } from './Timer';
 
 interface HabitListProps {
@@ -12,7 +12,7 @@ interface HabitListProps {
   onReorderHabits: (reorderedHabits: Habit[]) => void;
 }
 
-const CATEGORIES = ['Fitness', 'Learning', 'Mindfulness', 'Health', 'Reading', 'Work'];
+const CATEGORIES = ['Fitness', 'Learning', 'Mindfulness', 'Health', 'Reading', 'Work', 'Other'];
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 // Category icon mapping (Lucide icons)
@@ -22,7 +22,8 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   'Mindfulness': <Brain size={18} className="text-purple-500" />,
   'Health': <Heart size={18} className="text-red-500" />,
   'Reading': <Book size={18} className="text-emerald-500" />,
-  'Work': <Briefcase size={18} className="text-slate-500" />
+  'Work': <Briefcase size={18} className="text-amber-800" />,
+  'Other': <Star size={18} className="text-yellow-500" />
 };
 
 
@@ -32,6 +33,22 @@ const getLocalDateString = (date: Date): string => {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+// Helper to safely parse local date string 'YYYY-MM-DD' to Date object at local midnight
+const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+// Helper to get week number (ISO week)
+const getWeekKey = (date: Date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${d.getFullYear()}-W${weekNo}`;
 };
 
 export const HabitList: React.FC<HabitListProps> = ({
@@ -46,6 +63,7 @@ export const HabitList: React.FC<HabitListProps> = ({
   const [newHabitCategory, setNewHabitCategory] = useState(CATEGORIES[0]);
   const [newFrequencyType, setNewFrequencyType] = useState<'daily' | 'weekly' | 'custom'>('daily');
   const [newCustomDays, setNewCustomDays] = useState<number[]>([1, 2, 3, 4, 5]); // Mon-Fri default
+  const [newRepeatTarget, setNewRepeatTarget] = useState<number>(3); // Default 3 times/week
   const [newTargetDuration, setNewTargetDuration] = useState<string>(''); // Optional target duration in minutes
 
   const [isAdding, setIsAdding] = useState(false);
@@ -56,6 +74,7 @@ export const HabitList: React.FC<HabitListProps> = ({
   const [editCategory, setEditCategory] = useState('');
   const [editFrequencyType, setEditFrequencyType] = useState<'daily' | 'weekly' | 'custom'>('daily');
   const [editCustomDays, setEditCustomDays] = useState<number[]>([]);
+  const [editRepeatTarget, setEditRepeatTarget] = useState<number>(3);
   const [editTargetDuration, setEditTargetDuration] = useState<string>(''); // Optional target duration
 
   // Context Menu State
@@ -65,12 +84,54 @@ export const HabitList: React.FC<HabitListProps> = ({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Stopwatch state
-  const [stopwatchHabitId, setStopwatchHabitId] = useState<string | null>(null);
+  const [stopwatchHabitId, setStopwatchHabitId] = useState<string | null>(() => {
+    return localStorage.getItem('habitvision_active_timer_id');
+  });
 
-  const today = getLocalDateString(new Date());
+  // Persist active timer ID
+  useEffect(() => {
+    if (stopwatchHabitId) {
+      localStorage.setItem('habitvision_active_timer_id', stopwatchHabitId);
+    } else {
+      localStorage.removeItem('habitvision_active_timer_id');
+    }
+  }, [stopwatchHabitId]);
+
+  // Date Navigation State
+  const [viewDate, setViewDate] = useState(new Date());
+
+  const viewDateString = getLocalDateString(viewDate);
+  const today = getLocalDateString(new Date()); // Keep 'today' for comparison
+  const isToday = viewDateString === today;
+
+  const handlePrevDay = () => {
+    const newDate = new Date(viewDate);
+    newDate.setDate(viewDate.getDate() - 1);
+    setViewDate(newDate);
+  };
+
+  const handleNextDay = () => {
+    // Prevent going into future
+    if (isToday) return;
+
+    const newDate = new Date(viewDate);
+    newDate.setDate(viewDate.getDate() + 1);
+    setViewDate(newDate);
+  };
+
+  const getDisplayDate = () => {
+    if (isToday) return 'Today';
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (viewDateString === getLocalDateString(yesterday)) return 'Yesterday';
+
+    return viewDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
   // Live clock state
+
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Update clock every second
@@ -98,13 +159,15 @@ export const HabitList: React.FC<HabitListProps> = ({
       const duration = newTargetDuration ? parseInt(newTargetDuration) : undefined;
       onAddHabit(newHabitTitle, newHabitCategory, {
         type: newFrequencyType,
-        days: newFrequencyType === 'custom' ? newCustomDays : []
+        days: newFrequencyType === 'custom' ? newCustomDays : [],
+        repeatTarget: newFrequencyType === 'weekly' ? newRepeatTarget : undefined
       }, duration);
       setNewHabitTitle('');
       setNewTargetDuration('');
       setIsAdding(false);
       setNewFrequencyType('daily');
       setNewCustomDays([1, 2, 3, 4, 5]);
+      setNewRepeatTarget(3);
     }
   };
 
@@ -114,6 +177,7 @@ export const HabitList: React.FC<HabitListProps> = ({
     setEditCategory(habit.category);
     setEditFrequencyType(habit.frequency.type);
     setEditCustomDays(habit.frequency.days || []);
+    setEditRepeatTarget(habit.frequency.repeatTarget || 3);
     setEditTargetDuration(habit.targetDuration ? habit.targetDuration.toString() : '');
   };
 
@@ -125,7 +189,8 @@ export const HabitList: React.FC<HabitListProps> = ({
         category: editCategory,
         frequency: {
           type: editFrequencyType,
-          days: editFrequencyType === 'custom' ? editCustomDays : []
+          days: editFrequencyType === 'custom' ? editCustomDays : [],
+          repeatTarget: editFrequencyType === 'weekly' ? editRepeatTarget : undefined
         },
         ...(duration !== undefined && { targetDuration: duration })
       });
@@ -175,41 +240,46 @@ export const HabitList: React.FC<HabitListProps> = ({
 
   return (
     <div className="space-y-6 relative">
-      {/* Date Header */}
-      <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-xl p-4 shadow-lg">
-        <div className="flex items-center justify-between text-white">
-          <div>
-            <div className="text-sm font-medium opacity-90">
-              {currentTime.toLocaleDateString('en-US', { weekday: 'long' })}
-            </div>
-            <div className="text-2xl font-bold">
-              {currentTime.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-3xl font-bold font-mono tabular-nums">
-              {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-            </div>
-            <div className="text-xs opacity-75 mt-1">
-              {currentTime.toLocaleTimeString('en-US', { second: '2-digit' }).split(' ')[0].split(':')[2]}
-            </div>
-          </div>
+      {/* Date Navigation Header */}
+      <div className="flex items-center justify-between bg-white dark:bg-gray-900 p-4 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
+        <button
+          onClick={handlePrevDay}
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-gray-500 transition-colors"
+        >
+          <ChevronLeft size={20} />
+        </button>
+
+        <div className="font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+          {!isToday && <span className="text-xs font-normal px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-full">Viewing History</span>}
+          {getDisplayDate()}
         </div>
+
+        <button
+          onClick={handleNextDay}
+          disabled={isToday}
+          className={`p-2 rounded-lg transition-colors ${isToday
+            ? 'text-gray-300 dark:text-gray-700 cursor-not-allowed'
+            : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500'}`}
+        >
+          <ChevronRight size={20} />
+        </button>
       </div>
 
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white">My Habits</h2>
-        <button
-          id="btn-new-habit"
-          onClick={() => setIsAdding(!isAdding)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
-        >
-          <Plus size={20} />
-          <span>New Habit</span>
-        </button>
+        {isToday && (
+          <button
+            id="btn-new-habit"
+            onClick={() => setIsAdding(!isAdding)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
+          >
+            <Plus size={20} />
+            <span>New Habit</span>
+          </button>
+        )}
       </div>
 
-      {isAdding && (
+      {isToday && isAdding && (
         <form onSubmit={handleAdd} className="bg-white dark:bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 mb-6 animate-fade-in transition-colors">
           <div className="flex flex-col gap-4">
             <input
@@ -275,6 +345,18 @@ export const HabitList: React.FC<HabitListProps> = ({
                     ))}
                   </div>
                 )}
+
+                {/* Weekly Target Input */}
+                {newFrequencyType === 'weekly' && (
+                  <div className="flex items-center gap-3 animate-fade-in">
+                    <label className="text-sm text-gray-600 dark:text-gray-400">Days per week:</label>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => setNewRepeatTarget(Math.max(1, newRepeatTarget - 1))} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500">-</button>
+                      <span className="font-mono font-medium text-gray-900 dark:text-white w-4 text-center">{newRepeatTarget}</span>
+                      <button type="button" onClick={() => setNewRepeatTarget(Math.min(7, newRepeatTarget + 1))} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500">+</button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Target Duration (Optional) */}
@@ -318,14 +400,75 @@ export const HabitList: React.FC<HabitListProps> = ({
 
       <div className="space-y-3">
         {habits.length === 0 ? (
-          <div className="text-center py-12 bg-white dark:bg-gray-900 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 transition-colors">
-            <p className="text-gray-500 dark:text-gray-400">No habits yet. Start by adding one!</p>
+          <div className="text-center py-8 bg-white dark:bg-gray-900 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 transition-colors">
+            <p className="text-gray-500 dark:text-gray-400 mb-6 font-medium">No habits yet? Pick a starter pack:</p>
+            <div id="empty-state-grid" className="grid grid-cols-2 gap-3 px-4 max-w-md mx-auto">
+              <button
+                onClick={() => onAddHabit('Drink Water', 'Health', { type: 'daily', days: [] })}
+                className="p-4 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-xl hover:scale-105 transition-transform border border-blue-100 dark:border-blue-800 flex flex-col items-center gap-2"
+              >
+                <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-full"><Droplets size={20} /></div>
+                <span className="font-semibold text-sm">Hydrate</span>
+              </button>
+
+              <button
+                onClick={() => onAddHabit('Read 15 mins', 'Learning', { type: 'daily', days: [] }, 900)}
+                className="p-4 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-xl hover:scale-105 transition-transform border border-emerald-100 dark:border-emerald-800 flex flex-col items-center gap-2"
+              >
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-800 rounded-full"><BookOpen size={20} /></div>
+                <span className="font-semibold text-sm">Read</span>
+              </button>
+
+              <button
+                onClick={() => onAddHabit('Meditate', 'Mindfulness', { type: 'daily', days: [] }, 600)}
+                className="p-4 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-xl hover:scale-105 transition-transform border border-purple-100 dark:border-purple-800 flex flex-col items-center gap-2"
+              >
+                <div className="p-2 bg-purple-100 dark:bg-purple-800 rounded-full"><Flower2 size={20} /></div>
+                <span className="font-semibold text-sm">Zen</span>
+              </button>
+
+              <button
+                onClick={() => onAddHabit('Go for a Run', 'Fitness', { type: 'weekly', days: [], repeatTarget: 3 })}
+                className="p-4 bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-xl hover:scale-105 transition-transform border border-orange-100 dark:border-orange-800 flex flex-col items-center gap-2"
+              >
+                <div className="p-2 bg-orange-100 dark:bg-orange-800 rounded-full"><Footprints size={20} /></div>
+                <span className="font-semibold text-sm">Run 3x</span>
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mt-6 date-text">Or create your own custom habit below</p>
           </div>
         ) : (
           habits.map((habit, index) => {
-            const status = habit.history[today];
+            // Logic: Hide habit if looking at a date before it was created
+            if (habit.createdAt) {
+              const createdDate = new Date(habit.createdAt);
+              const createdDateStr = getLocalDateString(createdDate);
+              // Simple string comparison works for ISO YYYY-MM-DD
+              if (viewDateString < createdDateStr) {
+                return null;
+              }
+            }
+
+            const status = habit.history[viewDateString];
             const isEditing = editingId === habit.id;
             const isDragging = draggedIndex === index;
+
+            // Calculate weekly progress if applicable
+            let weeklyProgress = null;
+            if (habit.frequency.type === 'weekly' && habit.frequency.repeatTarget) {
+              const currentWeekKey = getWeekKey(viewDate); // Use viewDate for weekly calculation context
+              let count = 0;
+              Object.keys(habit.history).forEach(dateStr => {
+                if (habit.history[dateStr] === 'completed') {
+                  // FIX: Parse local date string correctly
+                  const localDate = parseLocalDate(dateStr);
+                  if (getWeekKey(localDate) === currentWeekKey) {
+                    count++;
+                  }
+                }
+              });
+              weeklyProgress = { count, target: habit.frequency.repeatTarget };
+            }
 
             if (isEditing) {
               return (
@@ -397,6 +540,18 @@ export const HabitList: React.FC<HabitListProps> = ({
                           ))}
                         </div>
                       )}
+
+                      {/* Weekly Target Input - Edit Mode */}
+                      {editFrequencyType === 'weekly' && (
+                        <div className="flex items-center gap-3 animate-fade-in">
+                          <label className="text-sm text-gray-600 dark:text-gray-400">Days per week:</label>
+                          <div className="flex items-center gap-2">
+                            <button type="button" onClick={() => setEditRepeatTarget(Math.max(1, editRepeatTarget - 1))} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500">-</button>
+                            <span className="font-mono font-medium text-gray-900 dark:text-white w-4 text-center">{editRepeatTarget}</span>
+                            <button type="button" onClick={() => setEditRepeatTarget(Math.min(7, editRepeatTarget + 1))} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500">+</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Target Duration (Optional) - Edit Form */}
@@ -431,8 +586,15 @@ export const HabitList: React.FC<HabitListProps> = ({
             return (
               <div
                 key={habit.id}
+                draggable
+                onDragStart={(e) => {
+                  setDraggedIndex(index);
+                  e.dataTransfer.effectAllowed = 'move';
+                  // Set drag image to the row itself (browser default usually works well for row)
+                }}
+                onDragEnd={handleDragEnd}
                 onDragOver={(e) => handleDragOver(e, index)}
-                className={`flex items-center justify-between p-4 bg-white dark:bg-gray-900 rounded-xl border transition-all group relative ${isDragging
+                className={`flex items-center justify-between p-4 bg-white dark:bg-gray-900 rounded-xl border transition-all group relative cursor-grab active:cursor-grabbing ${isDragging
                   ? 'opacity-50 scale-95'
                   : 'hover:shadow-lg hover:border-indigo-200 dark:hover:border-indigo-800'
                   } ${status === 'completed'
@@ -444,25 +606,19 @@ export const HabitList: React.FC<HabitListProps> = ({
                         : 'border-gray-200 dark:border-gray-800'
                   }`}
               >
-                <div className="flex items-center gap-4">
-                  {/* Drag Handle */}
+                <div className="flex items-center gap-4 flex-1 min-w-0 mr-2">
+                  {/* Drag Handle (Visual Only) */}
                   <div
-                    draggable
-                    onDragStart={(e) => {
-                      setDraggedIndex(index);
-                      e.dataTransfer.effectAllowed = 'move';
-                    }}
-                    onDragEnd={handleDragEnd}
-                    className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    className="text-gray-300 dark:text-gray-600 transition-colors flex-shrink-0"
                     title="Drag to reorder"
                   >
                     <GripVertical size={18} />
                   </div>
 
                   <button
-                    onClick={() => onUpdateStatus(habit.id, today, status === 'completed' ? null : 'completed')}
+                    onClick={() => onUpdateStatus(habit.id, viewDateString, status === 'completed' ? null : 'completed')}
                     onContextMenu={(e) => handleContextMenu(e, habit.id)}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${status === 'completed'
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${status === 'completed'
                       ? 'bg-green-500 text-white scale-110'
                       : status === 'partial'
                         ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 border-2 border-blue-500'
@@ -477,13 +633,30 @@ export const HabitList: React.FC<HabitListProps> = ({
                     {status === 'skipped' && <SkipForward size={18} />}
                   </button>
 
-                  <div>
-                    <h3 className={`font-medium transition-colors flex items-center gap-2 ${status === 'completed'
+                  <div className="min-w-0 flex-1">
+                    <h3 className={`font-medium transition-colors flex items-center gap-2 truncate ${status === 'completed'
                       ? 'text-gray-400 dark:text-gray-500 line-through'
                       : 'text-gray-800 dark:text-gray-200'
                       }`}>
-                      <span className="flex-shrink-0">{CATEGORY_ICONS[habit.category] || <Pin size={18} className="text-gray-400" />}</span>
-                      {habit.title}
+                      <span className="flex-shrink-0">
+                        {(() => {
+                          const lowerTitle = habit.title.toLowerCase();
+                          // Language Learning -> Users 'Languages' icon
+                          if (['german', 'french', 'spanish', 'italian', 'japanese', 'chinese', 'korean', 'russian'].some(l => lowerTitle.includes(l))) {
+                            return <Languages size={18} className="text-indigo-500" />;
+                          }
+
+                          if (lowerTitle.includes('water') || lowerTitle.includes('drink')) return <Droplets size={18} className="text-blue-400" />;
+                          if (lowerTitle.includes('sleep') || lowerTitle.includes('bed')) return <Moon size={18} className="text-indigo-400" />;
+                          if (lowerTitle.includes('meditate') || lowerTitle.includes('yoga')) return <Flower2 size={18} className="text-pink-400" />;
+                          if (lowerTitle.includes('run') || lowerTitle.includes('walk')) return <Footprints size={18} className="text-orange-400" />;
+                          if (lowerTitle.includes('coffee')) return <Coffee size={18} className="text-amber-700" />;
+                          if (lowerTitle.includes('read')) return <BookOpen size={18} className="text-emerald-500" />;
+
+                          return CATEGORY_ICONS[habit.category] || <Star size={18} className="text-gray-400" />;
+                        })()}
+                      </span>
+                      <span className="truncate">{habit.title}</span>
                     </h3>
                     <p className="text-xs flex items-center gap-1 mt-0.5">
                       <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-gray-600 dark:text-gray-400">
@@ -492,6 +665,21 @@ export const HabitList: React.FC<HabitListProps> = ({
                       {habit.frequency.type === 'custom' && (
                         <span className="text-gray-400 text-[10px] ml-1">
                           {habit.frequency.days.map(d => DAYS[d]).join(' ')}
+                        </span>
+                      )}
+
+                      {/* Weekly Progress Badge */}
+                      {weeklyProgress && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-1 ${weeklyProgress.count >= weeklyProgress.target
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
+                          }`}>
+                          {weeklyProgress.count >= weeklyProgress.target ? (
+                            <Check size={10} />
+                          ) : (
+                            <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                          )}
+                          {weeklyProgress.count}/{weeklyProgress.target} this week
                         </span>
                       )}
                     </p>
@@ -561,26 +749,26 @@ export const HabitList: React.FC<HabitListProps> = ({
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
           <button
-            onClick={() => { onUpdateStatus(contextMenu.id, today, 'completed'); setContextMenu(null); }}
+            onClick={() => { onUpdateStatus(contextMenu.id, viewDateString, 'completed'); setContextMenu(null); }}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
           >
             <Check size={14} className="text-green-500" /> Complete
           </button>
           <button
-            onClick={() => { onUpdateStatus(contextMenu.id, today, 'partial'); setContextMenu(null); }}
+            onClick={() => { onUpdateStatus(contextMenu.id, viewDateString, 'partial'); setContextMenu(null); }}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
           >
             <PieChart size={14} className="text-blue-500" /> Mark Partial
           </button>
           <button
-            onClick={() => { onUpdateStatus(contextMenu.id, today, 'skipped'); setContextMenu(null); }}
+            onClick={() => { onUpdateStatus(contextMenu.id, viewDateString, 'skipped'); setContextMenu(null); }}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
           >
             <SkipForward size={14} className="text-gray-500" /> Skip Day
           </button>
           <div className="h-px bg-gray-100 dark:bg-gray-700 my-1"></div>
           <button
-            onClick={() => { onUpdateStatus(contextMenu.id, today, null); setContextMenu(null); }}
+            onClick={() => { onUpdateStatus(contextMenu.id, viewDateString, null); setContextMenu(null); }}
             className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
           >
             <X size={14} /> Clear Status
@@ -595,11 +783,14 @@ export const HabitList: React.FC<HabitListProps> = ({
 
         return (
           <Timer
+            key={habit.id}
+            habitId={habit.id}
             habitTitle={habit.title}
             targetDuration={habit.targetDuration}
             onComplete={() => {
               // Auto-complete the habit when timer finishes
               onUpdateStatus(habit.id, today, 'completed');
+              setStopwatchHabitId(null);
             }}
             onClose={() => setStopwatchHabitId(null)}
           />

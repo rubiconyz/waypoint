@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Habit } from '../types';
-import { Mountain, Lock, Unlock, Play, Coins, MapPin, CheckCircle2 } from 'lucide-react';
+import { Mountain, Lock, Unlock, Play, Coins, MapPin, CheckCircle2, HelpCircle } from 'lucide-react';
 
 interface MountainClimberProps {
     habits: Habit[];
     coins: number;
     unlockedCheckpoints: number[];
     onUnlockCheckpoint: (id: number, cost: number) => void;
+    onShowGuide?: () => void;
 }
 
 // Configuration
@@ -25,7 +26,8 @@ export const MountainClimber: React.FC<MountainClimberProps> = ({
     habits,
     coins,
     unlockedCheckpoints,
-    onUnlockCheckpoint
+    onUnlockCheckpoint,
+    onShowGuide
 }) => {
     // State
     const [isUnlocking, setIsUnlocking] = useState(false);
@@ -91,9 +93,11 @@ export const MountainClimber: React.FC<MountainClimberProps> = ({
         <div className="max-w-4xl mx-auto space-y-6">
             {/* Header / Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 flex items-center justify-between">
+                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 flex items-center justify-between relative group">
                     <div>
-                        <h2 className="text-gray-500 dark:text-gray-400 text-sm font-medium uppercase tracking-wide">Current Altitude</h2>
+                        <h2 className="text-gray-500 dark:text-gray-400 text-sm font-medium uppercase tracking-wide flex items-center gap-2">
+                            Current Altitude
+                        </h2>
                         <div className="text-3xl font-bold text-gray-900 dark:text-white mt-1 flex items-baseline gap-1">
                             {currentCheckpoint.altitude}
                             <span className="text-sm font-normal text-gray-500">m</span>
@@ -102,8 +106,19 @@ export const MountainClimber: React.FC<MountainClimberProps> = ({
                             {currentCheckpoint.name}
                         </div>
                     </div>
-                    <div className="bg-indigo-50 dark:bg-indigo-900/30 p-3 rounded-xl">
-                        <Mountain className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                    <div className="flex flex-col gap-2">
+                        <div className="bg-indigo-50 dark:bg-indigo-900/30 p-3 rounded-xl">
+                            <Mountain className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                        </div>
+                        {onShowGuide && (
+                            <button
+                                onClick={onShowGuide}
+                                className="absolute top-4 right-4 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 opacity-100 transition-all p-1"
+                                title="Show Guide"
+                            >
+                                <HelpCircle size={18} />
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -141,7 +156,7 @@ export const MountainClimber: React.FC<MountainClimberProps> = ({
 
             {/* Next Checkpoint / Unlock Section */}
             {nextCheckpoint ? (
-                <div className="mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-1 shadow-lg transform transition-all hover:scale-[1.01]">
+                <div id="unlock-card" className="mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-1 shadow-lg transform transition-all hover:scale-[1.01]">
                     <div className="bg-white dark:bg-gray-900 rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
                         <div className="flex items-center gap-4">
                             <div className={`p-4 rounded-full ${coins >= nextCheckpoint.cost ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}>

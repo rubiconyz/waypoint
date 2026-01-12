@@ -7,6 +7,7 @@ export interface HabitHistory {
 export interface HabitFrequency {
   type: 'daily' | 'weekly' | 'custom';
   days: number[]; // 0-6, used for 'custom'
+  repeatTarget?: number; // X times per week
 }
 
 export interface Habit {
@@ -18,6 +19,7 @@ export interface Habit {
   history: HabitHistory;
   createdAt: string; // ISO timestamp - prevents retroactive badge exploitation
   targetDuration?: number; // Optional target duration in minutes for timed habits
+  order?: number; // Persistence for drag-and-drop ordering
   completedDates?: string[]; // Deprecated
 }
 
@@ -91,4 +93,34 @@ export interface AIStudioWindow {
     hasSelectedApiKey: () => Promise<boolean>;
     openSelectKey: () => Promise<void>;
   };
+}
+
+// Group Challenge types
+export interface ChallengeParticipant {
+  odId: string;                    // User ID
+  displayName: string;
+  avatarColor: string;             // Hex color for mountain visualization
+  avatarVariant?: '1' | '2';       // Character skin variant (1=default, 2=second_char)
+  joinedAt: string;                // ISO date
+  completedDays: number;           // Days habit was completed
+  totalDays: number;               // Days elapsed since joining
+  completionRate: number;          // 0-100%
+  hasCompleted: boolean;           // Reached 100% by challenge end?
+}
+
+export interface Challenge {
+  id: string;
+  creatorId: string;
+  habitTitle: string;              // The habit being tracked
+  habitId?: string;                // Optional link to creator's habit
+  title: string;                   // "30-Day Meditation Challenge"
+  category?: string;               // Category of the habit (e.g. Health, Learning)
+  description?: string;
+  startDate: string;               // ISO date
+  endDate: string;                 // ISO date
+  duration: number;                // Days
+  inviteCode: string;              // Unique shareable code
+  participants: ChallengeParticipant[];
+  createdAt: string;
+  isActive: boolean;               // Challenge still running
 }

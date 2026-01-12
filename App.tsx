@@ -2,15 +2,18 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { HabitList } from './components/HabitList';
 import { Analytics } from './components/Analytics';
 import { Badges } from './components/Badges';
+import { ChallengesTab } from './components/ChallengesTab';
 import { BadgeNotification } from './components/BadgeComponents';
 import { MountainClimber } from './components/MountainClimber';
 import { AuthModal } from './components/AuthModal';
-import { Habit, HabitFrequency, Badge, BadgeProgress } from './types';
+import { Habit, HabitFrequency, Badge, BadgeProgress, Challenge } from './types';
 import { checkBadgeUnlocks } from './badges';
-import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, User, Menu, Command, Plus, Coins } from 'lucide-react';
+import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, User, Menu, Command, Plus, Coins, Users } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useAuth } from './contexts/AuthContext';
 import { SettingsSidebar } from './components/SettingsSidebar';
+import { LandingPage } from './components/LandingPage';
+import { SpotlightTour, TourStep } from './components/SpotlightTour';
 import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 import {
   saveHabitsToFirestore,
@@ -21,6 +24,22 @@ import {
   loadUserStatsFromFirestore,
   deleteHabitFromFirestore
 } from './services/firestoreService';
+import {
+  createChallenge,
+  getDaysRemaining,
+  addParticipant,
+  updateParticipantName,
+  updateParticipantProgress,
+  isChallengeActive
+} from './challengeUtils';
+import {
+  saveChallengeToFirestore,
+  findChallengeByInviteCode,
+  updateChallengeInFirestore,
+  loadUserChallengesFromFirestore,
+  deleteChallengeFromFirestore,
+  subscribeToUserChallenges
+} from './services/firestoreService';
 
 const STORAGE_KEY = 'habitvision_data';
 const THEME_KEY = 'habitvision_theme';
@@ -28,6 +47,7 @@ const BADGES_KEY = 'habitvision_badges';
 const TOTAL_HABITS_KEY = 'habitvision_total_habits_created';
 const COINS_KEY = 'habitvision_coins';
 const CHECKPOINTS_KEY = 'habitvision_unlocked_checkpoints';
+const ACTIVE_TAB_KEY = 'habitvision_active_tab';
 
 // Helper function to get date string in local timezone (YYYY-MM-DD)
 const getLocalDateString = (date: Date): string => {
@@ -37,7 +57,75 @@ const getLocalDateString = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
+// Helper to get week number
+const getWeekKey = (date: Date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${d.getFullYear()}-W${weekNo}`;
+};
+
+// Helper to safely parse local date string 'YYYY-MM-DD' to Date object at local midnight
+const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 const calculateStreak = (habit: Habit) => {
+  // Weekly Frequency Logic
+  if (habit.frequency.type === 'weekly' && habit.frequency.repeatTarget) {
+    const target = habit.frequency.repeatTarget;
+    let streak = 0;
+
+    // Group history by week using consistent local dates
+    const historyByWeek: Record<string, number> = {};
+    Object.keys(habit.history).forEach(dateStr => {
+      if (habit.history[dateStr] === 'completed') {
+        const localDate = parseLocalDate(dateStr);
+        const weekKey = getWeekKey(localDate);
+        historyByWeek[weekKey] = (historyByWeek[weekKey] || 0) + 1;
+      }
+    });
+
+    let currentCheckDate = new Date();
+    currentCheckDate.setHours(0, 0, 0, 0); // Ensure clean start
+    let safety = 100;
+
+    // Check "Current Week" first
+    const currentWeekKey = getWeekKey(currentCheckDate);
+    // If current week is met, it counts!
+    if ((historyByWeek[currentWeekKey] || 0) >= target) {
+      streak++; // e.g. streak 1
+    }
+
+    // Move to previous week
+    currentCheckDate.setDate(currentCheckDate.getDate() - 7);
+
+    // Iterate backwards
+    while (safety > 0) {
+      const weekKey = getWeekKey(currentCheckDate);
+      if ((historyByWeek[weekKey] || 0) >= target) {
+        streak++;
+        currentCheckDate.setDate(currentCheckDate.getDate() - 7);
+      } else {
+        // Break usage: If a week is MISSED, the streak stops.
+
+        // EDGE CASE: If I am in "Current Week" and have streak of 0 (because incomplete).
+        // I check "Previous Week". If Previous Week is completed, streak should be 1?
+        // My current logic:
+        // current (0/4) -> streak = 0.
+        // check prev (4/4) -> streak = 1.
+        // So yes, it counts past streaks correctly even if current week is partial.
+        break;
+      }
+      safety--;
+    }
+    return streak;
+  }
+
+  // Daily / Custom Logic
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -55,7 +143,7 @@ const calculateStreak = (habit: Habit) => {
     if (habit.frequency.type === 'custom') {
       isDue = habit.frequency.days.includes(dayOfWeek);
     } else if (habit.frequency.type === 'weekly') {
-      isDue = true; // For weekly, treat as daily for now
+      isDue = true; // Fallback for old weekly
     }
 
     // If this day was not due, skip it without breaking the streak
@@ -139,8 +227,31 @@ const calculatePerfectDayStreak = (habits: Habit[]) => {
 const App: React.FC = () => {
   const { user, loading: authLoading, logout } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'tracker' | 'analytics' | 'badges' | 'mountain'>('tracker');
+  const [showLanding, setShowLanding] = useState(() => !localStorage.getItem('has_visited'));
+
+  // Interactive Tour State
+  const [tourSteps, setTourSteps] = useState<TourStep[]>([]);
+  const [seenTourSteps, setSeenTourSteps] = useState<string[]>(() => {
+    return JSON.parse(localStorage.getItem('habitvision_seen_tour_steps') || '[]');
+  });
+
+  const [activeTab, setActiveTab] = useState<'tracker' | 'analytics' | 'badges' | 'challenges' | 'mountain'>(() => {
+    const saved = localStorage.getItem(ACTIVE_TAB_KEY);
+    return (saved as any) || 'tracker';
+  });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // PERSIST: Save active tab
+  useEffect(() => {
+    localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
+  }, [activeTab]);
+
+  const handleStartApp = () => {
+    localStorage.setItem('has_visited', 'true');
+    setShowLanding(false);
+  };
+
+
 
   // Keyboard Shortcuts Effect
   useEffect(() => {
@@ -248,6 +359,217 @@ const App: React.FC = () => {
     // Return empty array if no saved data (clean slate for new users)
     return [];
   });
+
+  // Challenges state - load from storage or create demo
+  const [challenges, setChallenges] = useState<Challenge[]>(() => {
+    const saved = localStorage.getItem('habitvision_challenges');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse challenges', e);
+      }
+    }
+    return [];
+  });
+
+  // FIREBASE: Load Challenges on Login & Sync Local to Remote
+  useEffect(() => {
+    if (!user) return;
+
+    const syncChallenges = async () => {
+      try {
+        // 2. Push Local -> Remote (Legacy Sync / Offline creations)
+        const saved = localStorage.getItem('habitvision_challenges');
+        if (saved) {
+          try {
+            const localChallenges = JSON.parse(saved) as Challenge[];
+            for (const localC of localChallenges) {
+              // PROTECTION: Only push if WE are the creator (or it's a guest challenge we created).
+              // This prevents participants from re-uploading a challenge that the Admin deleted.
+              const isOwner = localC.creatorId === user.uid || localC.creatorId === 'guest';
+
+              if (isOwner) {
+                await saveChallengeToFirestore(localC);
+              }
+            }
+          } catch (e) { /* ignore parse error */ }
+        }
+
+        // 3. Subscribe to Remote (Source of Truth)
+        // This replaces the one-time Pull. It keeps us in sync with Global state (e.g. new joiners, deletions).
+        // Since we pushed our local stuff first, the subscription will pick it up (if we own it).
+        // Note: subscribeToUserChallenges returns an unsubscribe function.
+      } catch (e: any) {
+        console.error("Failed to sync challenges (Push)", e);
+      }
+    };
+
+    // Run the Push Sync once
+    syncChallenges();
+
+    // Start Subscription
+    const unsubscribe = subscribeToUserChallenges(user.uid, (remoteChallenges) => {
+      // Update local state with authoritative remote state
+      setChallenges(remoteChallenges);
+    });
+
+    return () => unsubscribe(); // Cleanup subscription on unmount/user change
+  }, [user]); // Run only on user change to avoid loops
+
+  // Sync user name in challenges when user updates/logs in
+  useEffect(() => {
+    if (user && challenges.length > 0) {
+      const currentName = user.email?.split('@')[0] || 'User';
+      const userId = user.uid;
+
+      let hasChanges = false;
+      const updatedChallenges = challenges.map(challenge => {
+        const participant = challenge.participants.find(p => p.odId === userId);
+        if (participant && participant.displayName !== currentName) {
+          hasChanges = true;
+          return updateParticipantName(challenge, userId, currentName);
+        }
+        return challenge;
+      });
+
+      if (hasChanges) {
+        setChallenges(updatedChallenges);
+        localStorage.setItem('habitvision_challenges', JSON.stringify(updatedChallenges));
+      }
+    }
+  }, [user]); // Removed 'challenges' from deps to avoid loop, though logic handles it. 
+  // Actually, including challenges is fine if we check hasChanges properly, but let's be safe.
+  // Ideally we only want to run when 'user' changes.
+
+  // PERSIST: Save challenges to localStorage
+  useEffect(() => {
+    localStorage.setItem('habitvision_challenges', JSON.stringify(challenges));
+  }, [challenges]);
+
+  // SYNC: Update challenge progress from habit completions
+  useEffect(() => {
+    if (challenges.length === 0) return;
+
+    const currentUserId = user?.uid || 'guest';
+    let hasChanges = false;
+
+    const updated = challenges.map(challenge => {
+      const habit = habits.find(h => h.id === challenge.habitId);
+      if (!habit) return challenge;
+
+      const userIdx = challenge.participants.findIndex(p => p.odId === currentUserId);
+      if (userIdx === -1) return challenge;
+
+      // Get date range as YYYY-MM-DD strings
+      const startStr = challenge.startDate.split('T')[0];
+      const endStr = challenge.endDate.split('T')[0];
+
+      // Count completed days in range
+      const completed = Object.keys(habit.history || {}).filter(dateKey => {
+        return dateKey >= startStr && dateKey <= endStr && habit.history[dateKey] === 'completed';
+      }).length;
+
+      if (completed !== challenge.participants[userIdx].completedDays) {
+        hasChanges = true;
+        const rate = Math.round((completed / challenge.duration) * 100);
+        const newParticipants = [...challenge.participants];
+        newParticipants[userIdx] = {
+          ...newParticipants[userIdx],
+          completedDays: completed,
+          totalDays: challenge.duration,
+          completionRate: rate,
+          hasCompleted: rate >= 100
+        };
+        return { ...challenge, participants: newParticipants };
+      }
+
+      return challenge;
+    });
+
+    if (hasChanges) {
+      if (hasChanges) {
+        setChallenges(updated);
+        // FIREBASE: Save progress updates to remote
+        if (user) {
+          updated.forEach(c => saveChallengeToFirestore(c));
+        }
+      }
+    }
+  }, [habits, user?.uid]);
+
+  // 2. Initial Tour (Tracker + Coins)
+  useEffect(() => {
+    if (showLanding || activeTab !== 'tracker') return;
+
+    // Check if we should show initial tour
+    if (habits.length === 0 && !seenTourSteps.includes('start')) {
+      const timer = setTimeout(() => {
+        setTourSteps([
+          {
+            targetId: 'empty-state-grid',
+            title: "Quick Start",
+            content: "Pick a starter pack to begin effortlessly.",
+            position: 'bottom'
+          },
+          {
+            targetId: 'btn-new-habit',
+            title: "Custom Habits",
+            content: "Or create any habit you want from scratch.",
+            position: 'left'
+          },
+          {
+            targetId: 'stats-coins',
+            title: "Earn Coins",
+            content: "Every habit you complete earns you coins. Spend them on themes and upgrades!",
+            position: 'bottom'
+          }
+        ]);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [habits.length, activeTab, seenTourSteps, showLanding]);
+
+  // 3. Manual Mountain Guide Trigger
+  const handleShowMountainGuide = () => {
+    setTourSteps([
+      {
+        targetId: 'nav-mountain',
+        title: "Your Journey",
+        content: "This is your progress visualizer. As you complete habits, your avatar climbs higher!",
+        position: 'bottom'
+      },
+      {
+        targetId: 'unlock-card',
+        title: "Unlock Checkpoints",
+        content: "Spend your earned coins here to unlock new altitudes.",
+        position: 'top'
+        // If unlock card is hidden (finished game), SpotlightTour handles missing elements gracefully now
+      }
+    ]);
+  };
+
+  const handleTourComplete = () => {
+    // Mark current steps as seen
+    let justSeen = '';
+    if (tourSteps[0]?.targetId === 'empty-state-grid') justSeen = 'start';
+    if (tourSteps[0]?.targetId === 'stats-coins') justSeen = 'coins';
+    // Mountain is manual now, so we don't necessarily need to mark it 'seen' to prevent re-show, 
+    // but we can if we want. For manual trigger, we always show.
+
+    if (justSeen) {
+      const newSeen = [...seenTourSteps, justSeen];
+      setSeenTourSteps(newSeen);
+      localStorage.setItem('habitvision_seen_tour_steps', JSON.stringify(newSeen));
+    }
+    setTourSteps([]);
+  };
+
+  // PERSIST: Save challenges to localStorage
+  useEffect(() => {
+    localStorage.setItem('habitvision_challenges', JSON.stringify(challenges));
+  }, [challenges]);
+
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
@@ -501,7 +823,15 @@ const App: React.FC = () => {
   const updateHabitStatus = (id: string, date: string, status: 'completed' | 'partial' | 'skipped' | null) => {
     // Play sound based on status
     if (status === 'completed') {
-      playCompletionSound();
+      const targetHabit = habits.find(h => h.id === id);
+      if (targetHabit && targetHabit.title.toLowerCase().includes('german')) {
+        // EASTER EGG: Play German song
+        const audio = new Audio('/assets/song for german/German .mp3');
+        audio.volume = 0.5; // Reasonable volume
+        audio.play().catch(e => console.error("Could not play German easter egg:", e));
+      } else {
+        playCompletionSound();
+      }
     } else if (status === 'partial') {
       playPartialSound();
     } else if (status === 'skipped') {
@@ -524,6 +854,42 @@ const App: React.FC = () => {
       if (status === 'completed' && newStreak > habit.streak && (newStreak % 7 === 0 || newStreak === 1 || newStreak === 30)) {
         triggerConfetti();
       }
+
+      // --- SYNC WITH CHALLENGES ---
+      // If this habit (by title) is part of any active challenge, update progress
+      if (challenges.length > 0 && user) {
+        // Find matching active challenges
+        const linkedChallenges = challenges.filter(c =>
+          c.habitTitle === habit.title &&
+          isChallengeActive(c) &&
+          c.participants.some(p => p.odId === user.uid)
+        );
+
+        if (linkedChallenges.length > 0) {
+          // Identify completed dates within challenge window
+          const completedDates = Object.entries(newHistory)
+            .filter(([d, s]) => s === 'completed') // Only completed
+            .map(([d]) => d);
+
+          linkedChallenges.forEach(challenge => {
+            // Count valid days for THIS challenge's range
+            const validCount = completedDates.filter(d =>
+              d >= challenge.startDate.split('T')[0] &&
+              d <= challenge.endDate.split('T')[0]
+            ).length;
+
+            // Prepare updated challenge object
+            const updatedChallenge = updateParticipantProgress(challenge, user.uid, validCount);
+
+            // Update Local State (Optimistic)
+            setChallenges(prev => prev.map(c => c.id === updatedChallenge.id ? updatedChallenge : c));
+
+            // Update Remote (Async)
+            saveChallengeToFirestore(updatedChallenge).catch(err => console.error("Sync to challenge failed", err));
+          });
+        }
+      }
+      // ----------------------------
 
       return {
         ...habit,
@@ -620,10 +986,99 @@ const App: React.FC = () => {
   // Calculate Perfect Streak
   const perfectStreak = useMemo(() => calculatePerfectDayStreak(habits), [habits]);
 
+  // Handle Join Challenge (Async with Firestore)
+  const handleJoinChallenge = async (inviteCode: string) => {
+    const currentUserId = user?.uid || 'guest';
+    const displayName = user?.email?.split('@')[0] || 'Guest';
+
+    // 1. Check if we already have it locally
+    let challenge = challenges.find(c => c.inviteCode === inviteCode);
+
+    // 2. If not, look it up in Firestore
+    if (!challenge) {
+      // PERMISSION CHECK: Guests cannot query Firestore usually
+      if (!user) {
+        const confirmLogin = confirm("To join a remote challenge, you must be signed in. Sign in now?");
+        if (confirmLogin) {
+          setShowAuthModal(true);
+        }
+        return;
+      }
+
+      try {
+        const remoteChallenge = await findChallengeByInviteCode(inviteCode);
+        if (remoteChallenge) {
+          challenge = remoteChallenge;
+        }
+      } catch (error: any) {
+        console.error("Error finding challenge", error);
+        alert(`Error finding challenge: ${error.message}`);
+        return;
+      }
+    }
+
+    if (challenge) {
+      if (challenge.participants.some(p => p.odId === currentUserId)) {
+        alert('You have already joined this challenge!');
+        return;
+      }
+
+      const updated = addParticipant(challenge, currentUserId, displayName);
+
+      // Validate: Challenge must allow this user (e.g. valid habit data?). 
+      // For now, assume open join.
+
+      // Update Local State
+      setChallenges(prev => {
+        // If it existed, update it. If it's new (from remote), add it.
+        const exists = prev.find(p => p.id === updated.id);
+        if (exists) {
+          return prev.map(c => c.id === updated.id ? updated : c);
+        }
+        return [...prev, updated];
+      });
+
+      // Update Remote
+      if (user) {
+        await saveChallengeToFirestore(updated);
+      }
+
+      // AUTO-CREATE HABIT: If user doesn't have this habit, create it
+      const existingHabit = habits.find(h => h.title === updated.habitTitle);
+      if (!existingHabit) {
+        const newHabit: Habit = {
+          id: Date.now().toString(), // Helper for unique ID
+          title: updated.habitTitle,
+          category: updated.category || 'Health', // Use challenge category (e.g. from original habit) or default to Health
+          streak: 0,
+          history: {},
+          frequency: { type: 'daily', days: [] },
+          createdAt: new Date().toISOString()
+        };
+        setHabits(prev => [...prev, newHabit]);
+
+        // Track stats
+        const newTotal = Math.max(totalHabitsCreated, habits.length + 1);
+        setTotalHabitsCreated(newTotal);
+        localStorage.setItem(TOTAL_HABITS_KEY, newTotal.toString());
+
+        alert(`Successfully joined "${updated.title}"!\nA new habit "${updated.habitTitle}" has been added to your tracker.`);
+      } else {
+        alert(`Successfully joined "${updated.title}"!\nPlease track progress using your existing "${updated.habitTitle}" habit.`);
+      }
+    } else {
+      alert('Invalid invite code. Could not find a matching challenge.');
+    }
+  };
+
+  if (showLanding) {
+    return <LandingPage onStart={handleStartApp} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col transition-colors duration-200">
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10 transition-colors">
-        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="w-full px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="bg-indigo-600 p-2 rounded-lg">
               <Mountain className="text-white w-5 h-5" />
@@ -638,6 +1093,11 @@ const App: React.FC = () => {
                 Saved
               </span>
             )}
+
+            <div id="stats-coins" className="flex items-center gap-1.5 px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-full font-bold text-sm">
+              <Coins size={14} />
+              <span>{coins}</span>
+            </div>
 
 
 
@@ -658,7 +1118,14 @@ const App: React.FC = () => {
                 <Award size={16} />
                 <span className="hidden sm:inline">Badges</span>
               </button>
-              <button onClick={() => setActiveTab('mountain')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'mountain' ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+              <button onClick={() => setActiveTab('challenges')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'challenges' ? 'bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                <Users size={16} />
+                <span className="hidden sm:inline">Challenges</span>
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] px-1 rounded-full font-bold animate-bounce shadow-sm">
+                  New
+                </span>
+              </button>
+              <button id="nav-mountain" onClick={() => setActiveTab('mountain')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'mountain' ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
                 <Mountain size={16} />
                 <span className="hidden sm:inline">Mountain</span>
               </button>
@@ -715,18 +1182,9 @@ const App: React.FC = () => {
       </header>
       <main className="flex-1 max-w-5xl mx-auto w-full p-4 md:p-6">
         {activeTab === 'tracker' ? (
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="md:col-span-2">
-              <HabitList
-                habits={habits}
-                onUpdateStatus={updateHabitStatus}
-                onAddHabit={addHabit}
-                onEditHabit={editHabit}
-                onDeleteHabit={deleteHabit}
-                onReorderHabits={reorderHabits}
-              />
-            </div>
-            <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Stats Column - Order 1 on Mobile, Order 2 on Desktop (Right Side) */}
+            <div className="space-y-6 order-1 md:order-2 md:col-span-1">
               <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-6 text-white shadow-lg relative overflow-hidden">
                 <h3 className="text-lg font-semibold mb-2 relative z-10">Daily Progress</h3>
                 <div className="flex items-end gap-2 mb-1 relative z-10">
@@ -784,17 +1242,83 @@ const App: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Habit List - Order 2 on Mobile, Order 1 on Desktop (Main Content) */}
+            <div className="order-2 md:order-1 md:col-span-2">
+              <HabitList
+                habits={habits}
+                onUpdateStatus={updateHabitStatus}
+                onAddHabit={addHabit}
+                onEditHabit={editHabit}
+                onDeleteHabit={deleteHabit}
+                onReorderHabits={reorderHabits}
+              />
+            </div>
           </div>
         ) : activeTab === 'analytics' ? (
           <Analytics habits={habits} />
         ) : activeTab === 'badges' ? (
           <Badges habits={habits} badgeProgress={badgeProgress} totalHabitsCreated={totalHabitsCreated} />
+        ) : activeTab === 'challenges' ? (
+          <ChallengesTab
+            challenges={challenges}
+            habits={habits}
+            userId={user?.uid || 'guest'}
+            userName={user?.email?.split('@')[0] || 'Guest'}
+            onCreateChallenge={(challenge) => {
+              // Check if habit needs to be created
+              const habitExists = habits.some(h => h.id === challenge.habitId);
+              if (!habitExists) {
+                // This case usually happens during Join, but for Create we select existing.
+                // If we allow "Custom Challenge", we might need to create here.
+              }
+              setChallenges([...challenges, challenge]);
+              // FIREBASE: Create Global Challenge
+              if (user) {
+                saveChallengeToFirestore(challenge).catch(e => {
+                  console.error("Failed to save challenge to cloud", e);
+                  alert(`Warning: Failed to save challenge to cloud. It may not be joinable by others. Error: ${e.message}`);
+                });
+              } else {
+                alert("Note: You are creating this challenge as a Guest. It will be saved locally, but others cannot join it until you Sign In.");
+              }
+            }}
+            onUpdateChallenge={(updatedChallenge) => {
+              setChallenges(challenges.map(c => c.id === updatedChallenge.id ? updatedChallenge : c));
+              // FIREBASE: Update Global Challenge
+              if (user) {
+                saveChallengeToFirestore(updatedChallenge);
+              }
+            }}
+            onDeleteChallenge={(challengeId) => {
+              if (confirm('Are you sure you want to delete this challenge? This action cannot be undone.')) {
+                setChallenges(challenges.filter(c => c.id !== challengeId));
+                // FIREBASE: Delete Global Challenge
+                if (user) {
+                  deleteChallengeFromFirestore(challengeId)
+                    .then(() => console.log('Challenge deleted from cloud'))
+                    .catch(e => {
+                      console.error("Failed to delete from cloud", e);
+                      alert(`Failed to delete challenge from cloud: ${e.message}`);
+                    });
+                }
+              }
+            }}
+            onRedactChallenge={(challengeId) => {
+              // For now, this is just a placeholder or could trigger an edit modal.
+              // Since ChallengesTab handles editing via `editingChallenge` state,
+              // we might not need extensive logic here unless we want to control it from App.
+              console.log('Redact/Edit challenge requested:', challengeId);
+            }}
+            onJoinChallenge={handleJoinChallenge}
+          />
         ) : activeTab === 'mountain' ? (
           <MountainClimber
             habits={habits}
             coins={coins}
             unlockedCheckpoints={unlockedCheckpoints}
             onUnlockCheckpoint={unlockCheckpoint}
+            onShowGuide={handleShowMountainGuide}
           />
         ) : null /* Fallback for unknown tab */}
       </main>
@@ -813,11 +1337,17 @@ const App: React.FC = () => {
         />
       )}
 
+      <SpotlightTour
+        steps={tourSteps}
+        isOpen={tourSteps.length > 0}
+        onComplete={handleTourComplete}
+      />
+
       {/* Auth Modal */}
-      {showAuthModal && !user && (
+      {showAuthModal && (
         <AuthModal onClose={() => setShowAuthModal(false)} />
       )}
-      {/* Vercel Analytics */}
+
       <VercelAnalytics />
     </div>
   );

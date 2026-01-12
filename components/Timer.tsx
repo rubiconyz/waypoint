@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Play, Pause, RotateCcw } from 'lucide-react';
+import { X, Play, Pause, RotateCcw, Minimize2, Maximize2 } from 'lucide-react';
 
 interface TimerProps {
+    habitId: string;
     habitTitle: string;
     targetDuration: number; // in minutes
     onComplete: () => void;
@@ -9,14 +10,28 @@ interface TimerProps {
 }
 
 export const Timer: React.FC<TimerProps> = ({
+    habitId,
     habitTitle,
     targetDuration,
     onComplete,
     onClose
 }) => {
+    const STORAGE_KEY = `habitvision_timer_state_${habitId}`;
+
+    const [remainingSeconds, setRemainingSeconds] = useState(() => {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        return saved ? parseInt(saved, 10) : targetDuration * 60;
+    });
+
+    // Resume isRunning state? Maybe safer to start paused on reload to avoid confusion.
+    // User requested "pauses and refreshes", so default false is correct.
     const [isRunning, setIsRunning] = useState(false);
-    const [remainingSeconds, setRemainingSeconds] = useState(targetDuration * 60);
+
+    // If we loaded from storage but it's finished (0), we should probably reset/handle it?
+    // But logic handles <= 0.
+
     const [isCompleted, setIsCompleted] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false);
 
     // Use refs to avoid recreating interval when callbacks change
     const onCompleteRef = useRef(onComplete);
@@ -31,6 +46,24 @@ export const Timer: React.FC<TimerProps> = ({
     // Calculate remaining percentage instead of elapsed
     const remainingPercent = Math.max((remainingSeconds / targetSeconds) * 100, 0);
 
+    // Force state reset when habitId changes (Double-safety against instance reuse)
+    useEffect(() => {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        setRemainingSeconds(saved ? parseInt(saved, 10) : targetDuration * 60);
+        setIsRunning(false);
+        setIsCompleted(false);
+    }, [habitId, STORAGE_KEY, targetDuration]); // Re-run if habitId changes
+
+    // Persist State
+    useEffect(() => {
+        if (remainingSeconds > 0 && !isCompleted) {
+            localStorage.setItem(STORAGE_KEY, remainingSeconds.toString());
+        } else {
+            // If completed or 0, clear it? Or keeps it at 0 until reset?
+            // Logic below clears on completion.
+        }
+    }, [remainingSeconds, isCompleted, STORAGE_KEY]);
+
     useEffect(() => {
         if (!isRunning || isCompleted) return;
 
@@ -40,9 +73,12 @@ export const Timer: React.FC<TimerProps> = ({
                 if (newValue <= 0) {
                     setIsRunning(false);
                     setIsCompleted(true);
+                    localStorage.removeItem(STORAGE_KEY); // Clear storage on completion
                     onCompleteRef.current();
-                    // Auto-close after 3 seconds
-                    setTimeout(() => onCloseRef.current(), 3000);
+                    // Auto-close after 3 seconds if not collapsed
+                    if (!isCollapsed) {
+                        setTimeout(() => onCloseRef.current(), 3000);
+                    }
                     return 0;
                 }
                 return newValue;
@@ -50,7 +86,7 @@ export const Timer: React.FC<TimerProps> = ({
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [isRunning, isCompleted]); // Removed onComplete and onClose from dependencies
+    }, [isRunning, isCompleted, isCollapsed, STORAGE_KEY]);
 
     const formatTime = (seconds: number): string => {
         const mins = Math.floor(seconds / 60);
@@ -60,19 +96,81 @@ export const Timer: React.FC<TimerProps> = ({
 
     const handleReset = () => {
         setRemainingSeconds(targetSeconds);
+        localStorage.removeItem(STORAGE_KEY);
         setIsRunning(false);
         setIsCompleted(false);
     };
 
+    if (isCollapsed) {
+        return (
+            <div className="fixed bottom-24 right-6 z-50 animate-fade-in">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center gap-4 w-72">
+                    {/* Ring Mini */}
+                    <div className="relative w-12 h-12 flex-shrink-0">
+                        <svg className="w-full h-full -rotate-90">
+                            <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="4" className="text-gray-100 dark:text-gray-700" />
+                            <circle cx="24" cy="24" r="20" fill="none" stroke={isCompleted ? '#10b981' : '#6366f1'} strokeWidth="4" strokeLinecap="round"
+                                strokeDasharray={`${2 * Math.PI * 20}`}
+                                strokeDashoffset={`${2 * Math.PI * 20 * (1 - remainingPercent / 100)}`}
+                                className="transition-all duration-300"
+                            />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold">
+                            {Math.round(remainingPercent)}%
+                        </div>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                        <h4 className="text-xs text-gray-500 dark:text-gray-400 truncate">{habitTitle}</h4>
+                        <div className="text-xl font-bold text-gray-900 dark:text-white font-mono">
+                            {formatTime(remainingSeconds)}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => setIsRunning(!isRunning)}
+                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500"
+                        >
+                            {isRunning ? <Pause size={16} /> : <Play size={16} />}
+                        </button>
+                        <button
+                            onClick={() => setIsCollapsed(false)}
+                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500"
+                        >
+                            <Maximize2 size={16} />
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg text-gray-400 hover:text-red-500"
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
             <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 rounded-3xl shadow-2xl max-w-lg w-full p-8 relative border border-gray-200 dark:border-gray-700">
-                <button
-                    onClick={onClose}
-                    className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-                >
-                    <X size={24} />
-                </button>
+                <div className="absolute top-6 right-6 flex items-center gap-2">
+                    <button
+                        onClick={() => setIsCollapsed(true)}
+                        className="text-gray-400 hover:text-indigo-500 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+                        title="Minimize"
+                    >
+                        <Minimize2 size={24} />
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+                        title="Close"
+                    >
+                        <X size={24} />
+                    </button>
+                </div>
 
                 {/* Header */}
                 <div className="text-center mb-8">
