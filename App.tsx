@@ -227,7 +227,28 @@ const calculatePerfectDayStreak = (habits: Habit[]) => {
 const App: React.FC = () => {
   const { user, loading: authLoading, logout } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showLanding, setShowLanding] = useState(() => !localStorage.getItem('has_visited'));
+  const [showLanding, setShowLanding] = useState(() => {
+    // Check if user has visited before
+    const hasVisited = localStorage.getItem('has_visited');
+    if (hasVisited) return false;
+
+    // Check if user has existing data (legacy user)
+    const savedData = localStorage.getItem('habitvision_data');
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Legacy user found, mark as visited and skip landing
+          localStorage.setItem('has_visited', 'true');
+          return false;
+        }
+      } catch (e) {
+        // invalid data, treat as new
+      }
+    }
+
+    return true;
+  });
 
   // Interactive Tour State
   const [tourSteps, setTourSteps] = useState<TourStep[]>([]);
@@ -239,6 +260,15 @@ const App: React.FC = () => {
     const saved = localStorage.getItem(ACTIVE_TAB_KEY);
     return (saved as any) || 'tracker';
   });
+
+  const [wallpaper, setWallpaper] = useState<string>(() => {
+    return localStorage.getItem('habitvision_wallpaper') || 'none';
+  });
+
+  // Persist wallpaper
+  useEffect(() => {
+    localStorage.setItem('habitvision_wallpaper', wallpaper);
+  }, [wallpaper]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // PERSIST: Save active tab
@@ -1076,8 +1106,12 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col transition-colors duration-200">
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10 transition-colors">
+    <div className={`min-h-screen flex flex-col transition-colors duration-200 ${(activeTab === 'tracker' && wallpaper !== 'none') ? 'bg-transparent' : 'bg-gray-50 dark:bg-gray-950'
+      }`}>
+      <header className={`border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10 transition-colors ${(activeTab === 'tracker' && wallpaper !== 'none')
+        ? 'bg-white/60 dark:bg-black/60 backdrop-blur-xl border-white/20 dark:border-white/10'
+        : 'bg-white dark:bg-gray-900'
+        }`}>
         <div className="w-full px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="bg-indigo-600 p-2 rounded-lg">
@@ -1180,12 +1214,36 @@ const App: React.FC = () => {
           </div>
         </div>
       </header>
-      <main className="flex-1 max-w-5xl mx-auto w-full p-4 md:p-6">
+      {/* Wallpaper Background Layer */}
+      {activeTab === 'tracker' && wallpaper !== 'none' && (
+        <div
+          className={`fixed inset-0 -z-10 transition-all duration-700 bg-cover bg-center bg-no-repeat ${wallpaper === 'ocean' ? 'bg-gradient-to-br from-blue-100 to-cyan-200 dark:from-blue-900/40 dark:to-cyan-900/40' :
+            wallpaper === 'forest' ? 'bg-gradient-to-br from-emerald-100 to-teal-200 dark:from-emerald-900/40 dark:to-teal-900/40' :
+              wallpaper === 'midnight' ? 'bg-gradient-to-br from-slate-900 to-indigo-900' :
+                wallpaper === 'minimalist' ? 'bg-gray-50 dark:bg-black' :
+                  ''
+            }`}
+          style={{
+            backgroundImage:
+              wallpaper === 'countryside' ? 'url(/assets/wallpapers/countryside.jpg)' :
+                wallpaper === 'forest' ? 'url(/assets/wallpapers/forest.jpg)' :
+                  wallpaper === 'midnight' ? 'url(/assets/wallpapers/midnight.jpg)' :
+                    wallpaper === 'ocean' ? 'url(/assets/wallpapers/ocean.jpg)' :
+                      undefined
+          }}
+        />
+      )}
+
+      {/* Main Content Area */}
+      <main className="container mx-auto px-4 py-8 pb-24 md:pb-8 max-w-5xl">
         {activeTab === 'tracker' ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Stats Column - Order 1 on Mobile, Order 2 on Desktop (Right Side) */}
             <div className="space-y-6 order-1 md:order-2 md:col-span-1">
-              <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-6 text-white shadow-lg relative overflow-hidden">
+              <div className={`rounded-xl p-6 text-white shadow-lg relative overflow-hidden ${(activeTab === 'tracker' && wallpaper !== 'none')
+                ? 'bg-gradient-to-br from-indigo-500/75 to-purple-600/75 backdrop-blur-sm'
+                : 'bg-gradient-to-br from-indigo-500 to-purple-600'
+                }`}>
                 <h3 className="text-lg font-semibold mb-2 relative z-10">Daily Progress</h3>
                 <div className="flex items-end gap-2 mb-1 relative z-10">
                   <span className="text-4xl font-bold">{progressPercentage}%</span>
@@ -1196,30 +1254,12 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Coin Balance Card */}
-              <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm transition-colors">
-                <h3 className="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-                  <div className="bg-yellow-100 dark:bg-yellow-900/40 p-1.5 rounded-lg">
-                    <Coins size={18} className="text-yellow-600 dark:text-yellow-400" />
-                  </div>
-                  Available Funds
-                </h3>
-                <div className="flex items-baseline gap-2 mb-1">
-                  <span className="text-3xl font-bold text-gray-900 dark:text-white">{coins}</span>
-                  <span className="text-gray-500 dark:text-gray-400 font-medium">Coins</span>
-                </div>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
-                  Earn 1 coin per habit completion
-                </p>
-                <button
-                  onClick={() => setActiveTab('mountain')}
-                  className="w-full py-2 text-sm text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center justify-center gap-2"
-                >
-                  Spend Coins <Coins size={14} />
-                </button>
-              </div>
 
-              <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm transition-colors">
+
+              <div className={`rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm transition-colors ${(activeTab === 'tracker' && wallpaper !== 'none')
+                ? 'bg-white/60 dark:bg-black/60 backdrop-blur-xl border-white/20 dark:border-white/10'
+                : 'bg-white dark:bg-gray-900'
+                }`}>
                 <h3 className="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
                   <BarChart2 size={18} className="text-gray-400" />
                   Quick Stats
@@ -1243,7 +1283,6 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* Habit List - Order 2 on Mobile, Order 1 on Desktop (Main Content) */}
             <div className="order-2 md:order-1 md:col-span-2">
               <HabitList
                 habits={habits}
@@ -1252,6 +1291,7 @@ const App: React.FC = () => {
                 onEditHabit={editHabit}
                 onDeleteHabit={deleteHabit}
                 onReorderHabits={reorderHabits}
+                isTransparent={wallpaper !== 'none'}
               />
             </div>
           </div>
@@ -1327,6 +1367,8 @@ const App: React.FC = () => {
       <SettingsSidebar
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+        currentWallpaper={wallpaper}
+        onSetWallpaper={setWallpaper}
       />
 
       {/* Badge Notification */}

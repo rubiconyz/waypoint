@@ -10,7 +10,10 @@ interface HabitListProps {
   onEditHabit: (id: string, updates: Partial<Habit>) => void;
   onDeleteHabit: (id: string) => void;
   onReorderHabits: (reorderedHabits: Habit[]) => void;
+  isTransparent?: boolean;
 }
+
+
 
 const CATEGORIES = ['Fitness', 'Learning', 'Mindfulness', 'Health', 'Reading', 'Work', 'Other'];
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -57,7 +60,8 @@ export const HabitList: React.FC<HabitListProps> = ({
   onAddHabit,
   onEditHabit,
   onDeleteHabit,
-  onReorderHabits
+  onReorderHabits,
+  isTransparent
 }) => {
   const [newHabitTitle, setNewHabitTitle] = useState('');
   const [newHabitCategory, setNewHabitCategory] = useState(CATEGORIES[0]);
@@ -241,7 +245,10 @@ export const HabitList: React.FC<HabitListProps> = ({
   return (
     <div className="space-y-6 relative">
       {/* Date Navigation Header */}
-      <div className="flex items-center justify-between bg-white dark:bg-gray-900 p-4 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
+      <div className={`flex items-center justify-between p-4 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm transition-all ${isTransparent
+        ? 'bg-white/60 dark:bg-black/60 backdrop-blur-xl border-white/20 dark:border-white/10'
+        : 'bg-white/80 dark:bg-gray-900/80 backdrop-blur-md'
+        }`}>
         <button
           onClick={handlePrevDay}
           className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-gray-500 transition-colors"
@@ -280,7 +287,10 @@ export const HabitList: React.FC<HabitListProps> = ({
       </div>
 
       {isToday && isAdding && (
-        <form onSubmit={handleAdd} className="bg-white dark:bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 mb-6 animate-fade-in transition-colors">
+        <form onSubmit={handleAdd} className={`p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 mb-6 animate-fade-in transition-all ${isTransparent
+          ? 'bg-white/60 dark:bg-black/60 backdrop-blur-xl border-white/20 dark:border-white/10'
+          : 'bg-white/90 dark:bg-gray-900/90 backdrop-blur-md'
+          }`}>
           <div className="flex flex-col gap-4">
             <input
               type="text"
@@ -400,7 +410,10 @@ export const HabitList: React.FC<HabitListProps> = ({
 
       <div className="space-y-3">
         {habits.length === 0 ? (
-          <div className="text-center py-8 bg-white dark:bg-gray-900 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 transition-colors">
+          <div className={`text-center py-8 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 transition-all ${isTransparent
+            ? 'bg-white/20 dark:bg-black/20 backdrop-blur-md'
+            : 'bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm'
+            }`}>
             <p className="text-gray-500 dark:text-gray-400 mb-6 font-medium">No habits yet? Pick a starter pack:</p>
             <div id="empty-state-grid" className="grid grid-cols-2 gap-3 px-4 max-w-md mx-auto">
               <button
@@ -594,9 +607,12 @@ export const HabitList: React.FC<HabitListProps> = ({
                 }}
                 onDragEnd={handleDragEnd}
                 onDragOver={(e) => handleDragOver(e, index)}
-                className={`flex items-center justify-between p-4 bg-white dark:bg-gray-900 rounded-xl border transition-all group relative cursor-grab active:cursor-grabbing ${isDragging
-                  ? 'opacity-50 scale-95'
-                  : 'hover:shadow-lg hover:border-indigo-200 dark:hover:border-indigo-800'
+                className={`flex items-center justify-between p-4 rounded-xl border transition-all group relative cursor-grab active:cursor-grabbing ${isTransparent
+                  ? 'bg-white/60 dark:bg-black/60 backdrop-blur-xl border-white/20 dark:border-white/10'
+                  : 'bg-white/80 dark:bg-gray-900/80 backdrop-blur-md'
+                  } ${isDragging
+                    ? 'opacity-50 scale-95'
+                    : 'hover:shadow-lg hover:border-indigo-200 dark:hover:border-indigo-800'
                   } ${status === 'completed'
                     ? 'border-green-200 dark:border-green-900 bg-green-50/30 dark:bg-green-900/10'
                     : status === 'partial'

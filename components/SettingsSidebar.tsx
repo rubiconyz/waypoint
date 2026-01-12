@@ -1,15 +1,30 @@
 import React from 'react';
-import { X, Command, Moon, Plus, LayoutDashboard, BarChart2, Award, Mountain } from 'lucide-react';
+import { X, Command, Moon, Plus, LayoutDashboard, BarChart2, Award, Mountain, Check, Palette } from 'lucide-react';
 
 interface SettingsSidebarProps {
     isOpen: boolean;
     onClose: () => void;
+    currentWallpaper?: string;
+    onSetWallpaper?: (id: string) => void;
 }
 
-export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ isOpen, onClose }) => {
+export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
+    isOpen,
+    onClose,
+    currentWallpaper = 'none',
+    onSetWallpaper = () => { }
+}) => {
     // Determine modifier key based on OS
     const isMac = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
     const modKey = isMac ? 'Cmd' : 'Ctrl';
+
+    const WALLPAPERS = [
+        { id: 'none', label: 'Default', class: 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800' },
+        { id: 'countryside', label: 'Countryside', class: 'bg-cover bg-center', style: { backgroundImage: "url('/assets/wallpapers/countryside.jpg')" } },
+        { id: 'ocean', label: 'Ocean', class: 'bg-cover bg-center', style: { backgroundImage: "url('/assets/wallpapers/ocean.jpg')" } },
+        { id: 'forest', label: 'Forest', class: 'bg-cover bg-center', style: { backgroundImage: "url('/assets/wallpapers/forest.jpg')" } },
+        { id: 'midnight', label: 'Midnight', class: 'bg-cover bg-center', style: { backgroundImage: "url('/assets/wallpapers/midnight.jpg')" } },
+    ];
 
     return (
         <>
@@ -28,8 +43,8 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ isOpen, onClos
                 <div className="p-6 h-full flex flex-col">
                     <div className="flex items-center justify-between mb-8">
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                            <Command className="w-5 h-5" />
-                            Shortcuts
+                            <LayoutDashboard className="w-5 h-5" />
+                            Settings
                         </h2>
                         <button
                             onClick={onClose}
@@ -39,20 +54,48 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ isOpen, onClos
                         </button>
                     </div>
 
-                    <div className="space-y-6 overflow-y-auto flex-1">
-                        {/* General Section */}
+                    <div className="space-y-8 overflow-y-auto flex-1">
+
+                        {/* Wallpaper Section */}
+                        {onSetWallpaper && (
+                            <div>
+                                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                    <Palette className="w-3 h-3" />
+                                    Appearance
+                                </h3>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {WALLPAPERS.map((wp) => (
+                                        <button
+                                            key={wp.id}
+                                            onClick={() => onSetWallpaper(wp.id)}
+                                            className={`
+                                                relative aspect-square rounded-xl overflow-hidden shadow-sm transition-all
+                                                ${currentWallpaper === wp.id ? 'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-gray-900 scale-95' : 'hover:scale-105 hover:shadow-md'}
+                                            `}
+                                        >
+                                            <div className={`w-full h-full ${wp.class}`} style={wp.style} />
+                                            <span className="absolute bottom-0 left-0 right-0 bg-black/50 text-[10px] text-white py-1 text-center font-medium backdrop-blur-sm">
+                                                {wp.label}
+                                            </span>
+                                            {currentWallpaper === wp.id && (
+                                                <div className="absolute top-1 right-1 bg-indigo-500 rounded-full p-0.5">
+                                                    <Check size={10} className="text-white" />
+                                                </div>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Shortcuts Section */}
                         <div>
-                            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">General</h3>
+                            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Shortcuts</h3>
                             <div className="space-y-2">
                                 <ShortcutItem
                                     keys={[modKey, 'K']}
                                     label="Toggle Shortcuts"
                                     icon={<Command size={16} />}
-                                />
-                                <ShortcutItem
-                                    keys={[modKey, 'D']}
-                                    label="Toggle Dark Mode"
-                                    icon={<Moon size={16} />}
                                 />
                                 <ShortcutItem
                                     keys={[modKey, 'I']}
@@ -97,7 +140,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({ isOpen, onClos
                     </div>
 
                     <div className="pt-6 mt-auto border-t border-gray-200 dark:border-gray-800 text-center text-xs text-gray-400">
-                        v1.0.0 • Waypoint
+                        v1.1.0 • Waypoint
                     </div>
                 </div>
             </div>
