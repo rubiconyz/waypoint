@@ -20,6 +20,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
 
     const WALLPAPERS = [
         { id: 'none', label: 'Default', class: 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800' },
+        { id: 'sunset', label: 'Sunset', class: 'bg-cover bg-center', style: { backgroundImage: "url('/assets/wallpapers/sunset.jpg')" } },
         { id: 'countryside', label: 'Countryside', class: 'bg-cover bg-center', style: { backgroundImage: "url('/assets/wallpapers/countryside.jpg')" } },
         { id: 'ocean', label: 'Ocean', class: 'bg-cover bg-center', style: { backgroundImage: "url('/assets/wallpapers/ocean.jpg')" } },
         { id: 'forest', label: 'Forest', class: 'bg-cover bg-center', style: { backgroundImage: "url('/assets/wallpapers/forest.jpg')" } },

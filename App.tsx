@@ -1225,11 +1225,12 @@ const App: React.FC = () => {
             }`}
           style={{
             backgroundImage:
-              wallpaper === 'countryside' ? 'url(/assets/wallpapers/countryside.jpg)' :
-                wallpaper === 'forest' ? 'url(/assets/wallpapers/forest.jpg)' :
-                  wallpaper === 'midnight' ? 'url(/assets/wallpapers/midnight.jpg)' :
-                    wallpaper === 'ocean' ? 'url(/assets/wallpapers/ocean.jpg)' :
-                      undefined
+              wallpaper === 'sunset' ? 'url(/assets/wallpapers/sunset.jpg)' :
+                wallpaper === 'countryside' ? 'url(/assets/wallpapers/countryside.jpg)' :
+                  wallpaper === 'forest' ? 'url(/assets/wallpapers/forest.jpg)' :
+                    wallpaper === 'midnight' ? 'url(/assets/wallpapers/midnight.jpg)' :
+                      wallpaper === 'ocean' ? 'url(/assets/wallpapers/ocean.jpg)' :
+                        undefined
           }}
         />
       )}
