@@ -13,7 +13,9 @@ import confetti from 'canvas-confetti';
 import { useAuth } from './contexts/AuthContext';
 import { SettingsSidebar } from './components/SettingsSidebar';
 import { LandingPage } from './components/LandingPage';
+import { FocusMode } from './components/FocusMode';
 import { SpotlightTour, TourStep } from './components/SpotlightTour';
+import { BrainCircuit } from 'lucide-react';
 import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 import {
   saveHabitsToFirestore,
@@ -225,6 +227,7 @@ const calculatePerfectDayStreak = (habits: Habit[]) => {
 
 const App: React.FC = () => {
   const { user, loading: authLoading, logout } = useAuth();
+  const [showFocusMode, setShowFocusMode] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showLanding, setShowLanding] = useState(() => {
     // Check if user has visited before
@@ -1124,6 +1127,14 @@ const App: React.FC = () => {
               <span>{coins}</span>
             </div>
 
+            <button
+              onClick={() => setShowFocusMode(true)}
+              className="p-2 text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-white transition-colors rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40"
+              title="Focus Tools (ADHD Assist)"
+            >
+              <BrainCircuit size={20} />
+            </button>
+
 
 
             <button onClick={toggleTheme} className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
@@ -1376,6 +1387,8 @@ const App: React.FC = () => {
         isOpen={tourSteps.length > 0}
         onComplete={handleTourComplete}
       />
+
+      <FocusMode isOpen={showFocusMode} onClose={() => setShowFocusMode(false)} />
 
       {/* Auth Modal */}
       {showAuthModal && (
