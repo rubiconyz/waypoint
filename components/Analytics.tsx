@@ -725,15 +725,27 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
                 d.setDate(d.getDate() - i);
                 const dateStr = getLocalDateString(d);
 
+                // FILTER: Only count habits that existed on this day
+                const dMidnight = new Date(d);
+                dMidnight.setHours(0, 0, 0, 0);
+
+                const activeHabitsOnDay = habits.filter(h => {
+                  if (!h.createdAt) return true;
+                  const created = new Date(h.createdAt);
+                  created.setHours(0, 0, 0, 0);
+                  return created <= dMidnight;
+                });
+
                 let completions = 0;
                 let partials = 0;
-                habits.forEach(h => {
+
+                activeHabitsOnDay.forEach(h => {
                   if (h.history[dateStr] === 'completed') completions++;
                   else if (h.history[dateStr] === 'partial') partials++;
                 });
 
                 const totalScore = completions + (partials * 0.5);
-                const percentage = habits.length > 0 ? Math.round((totalScore / habits.length) * 100) : 0;
+                const percentage = activeHabitsOnDay.length > 0 ? Math.round((totalScore / activeHabitsOnDay.length) * 100) : 0;
 
                 last7Days.push({
                   date: dateStr,
