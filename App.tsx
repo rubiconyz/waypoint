@@ -166,8 +166,7 @@ const calculateStreak = (habit: Habit) => {
 
       if (isToday) {
         // Grace period: if today isn't done yet, don't break the streak
-        // but stop counting here
-        break;
+        // Just continue to check yesterday
       } else {
         // Past day that was due but not completed - break the streak
         break;
