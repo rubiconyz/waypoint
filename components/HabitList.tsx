@@ -199,7 +199,8 @@ export const HabitList: React.FC<HabitListProps> = ({
           days: editFrequencyType === 'custom' ? editCustomDays : [],
           repeatTarget: editFrequencyType === 'weekly' ? editRepeatTarget : undefined
         },
-        ...(duration !== undefined && { targetDuration: duration })
+        ...(duration !== undefined && { targetDuration: duration }),
+        microSteps: editMicroSteps
       });
       setEditingId(null);
     }
