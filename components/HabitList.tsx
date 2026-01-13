@@ -831,6 +831,46 @@ export const HabitList: React.FC<HabitListProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {/* ADHD Micro-steps Checklist */}
+                {habit.microSteps && habit.microSteps.length > 0 && (
+                  <div className="mt-3 pl-2 border-l-2 border-gray-100 dark:border-gray-800 space-y-1.5 animate-fade-in">
+                    {habit.microSteps.map(step => (
+                      <div key={step.id} className="flex items-center gap-2 group">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const newSteps = habit.microSteps!.map(s =>
+                              s.id === step.id ? { ...s, completed: !s.completed } : s
+                            );
+                            onEditHabit(habit.id, { microSteps: newSteps });
+                          }}
+                          className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${step.completed
+                            ? 'bg-blue-500 border-blue-500 text-white'
+                            : 'bg-transparent border-gray-300 dark:border-gray-600 hover:border-blue-400'
+                            }`}
+                        >
+                          {step.completed && <Check size={10} strokeWidth={4} />}
+                        </button>
+                        <span className={`text-sm transition-all ${step.completed
+                          ? 'text-gray-400 line-through dark:text-gray-500'
+                          : 'text-gray-600 dark:text-gray-300'
+                          }`}>
+                          {step.text}
+                        </span>
+                      </div>
+                    ))}
+                    {/* Progress Bar for Micro-steps */}
+                    <div className="w-full bg-gray-100 dark:bg-gray-800 h-1 rounded-full mt-2 overflow-hidden">
+                      <div
+                        className="bg-blue-500 h-full transition-all duration-300"
+                        style={{
+                          width: `${(habit.microSteps.filter(s => s.completed).length / habit.microSteps.length) * 100}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })
