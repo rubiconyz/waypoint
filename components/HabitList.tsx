@@ -6,7 +6,7 @@ import { Timer } from './Timer';
 interface HabitListProps {
   habits: Habit[];
   onUpdateStatus: (id: string, date: string, status: 'completed' | 'partial' | 'skipped' | null) => void;
-  onAddHabit: (title: string, category: string, frequency: HabitFrequency, targetDuration?: number) => void;
+  onAddHabit: (title: string, category: string, frequency: HabitFrequency, targetDuration?: number, microSteps?: { id: string; text: string; completed: boolean }[]) => void;
   onEditHabit: (id: string, updates: Partial<Habit>) => void;
   onDeleteHabit: (id: string) => void;
   onReorderHabits: (reorderedHabits: Habit[]) => void;
@@ -69,6 +69,7 @@ export const HabitList: React.FC<HabitListProps> = ({
   const [newCustomDays, setNewCustomDays] = useState<number[]>([1, 2, 3, 4, 5]); // Mon-Fri default
   const [newRepeatTarget, setNewRepeatTarget] = useState<number>(3); // Default 3 times/week
   const [newTargetDuration, setNewTargetDuration] = useState<string>(''); // Optional target duration in minutes
+  const [newMicroSteps, setNewMicroSteps] = useState<{ id: string; text: string; completed: boolean }[]>([]);
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -80,6 +81,7 @@ export const HabitList: React.FC<HabitListProps> = ({
   const [editCustomDays, setEditCustomDays] = useState<number[]>([]);
   const [editRepeatTarget, setEditRepeatTarget] = useState<number>(3);
   const [editTargetDuration, setEditTargetDuration] = useState<string>(''); // Optional target duration
+  const [editMicroSteps, setEditMicroSteps] = useState<{ id: string; text: string; completed: boolean }[]>([]);
 
   // Context Menu State
   const [contextMenu, setContextMenu] = useState<{ id: string, x: number, y: number } | null>(null);
@@ -165,9 +167,10 @@ export const HabitList: React.FC<HabitListProps> = ({
         type: newFrequencyType,
         days: newFrequencyType === 'custom' ? newCustomDays : [],
         repeatTarget: newFrequencyType === 'weekly' ? newRepeatTarget : undefined
-      }, duration);
+      }, duration, newMicroSteps);
       setNewHabitTitle('');
       setNewTargetDuration('');
+      setNewMicroSteps([]);
       setIsAdding(false);
       setNewFrequencyType('daily');
       setNewCustomDays([1, 2, 3, 4, 5]);
@@ -397,6 +400,44 @@ export const HabitList: React.FC<HabitListProps> = ({
               >
                 Cancel
               </button>
+              {/* Micro-steps (Add Form) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
+                  Micro-steps (Break it down) 📝
+                </label>
+                <div className="space-y-2 mb-2">
+                  {newMicroSteps.map((step, idx) => (
+                    <div key={step.id} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={step.text}
+                        onChange={(e) => {
+                          const newSteps = [...newMicroSteps];
+                          newSteps[idx].text = e.target.value;
+                          setNewMicroSteps(newSteps);
+                        }}
+                        className="flex-1 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        placeholder={`Step ${idx + 1}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setNewMicroSteps(prev => prev.filter((_, i) => i !== idx))}
+                        className="text-gray-400 hover:text-red-500"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNewMicroSteps([...newMicroSteps, { id: crypto.randomUUID(), text: '', completed: false }])}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                >
+                  <Plus size={12} /> Add Micro-step
+                </button>
+              </div>
+
               <button
                 type="submit"
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -584,6 +625,45 @@ export const HabitList: React.FC<HabitListProps> = ({
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         Add a timer for this habit (in minutes)
                       </p>
+                    </div>
+
+
+                    {/* Micro-steps (ADHD) */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
+                        Micro-steps (Break it down) 📝
+                      </label>
+                      <div className="space-y-2 mb-2">
+                        {editMicroSteps.map((step, idx) => (
+                          <div key={step.id} className="flex gap-2">
+                            <input
+                              type="text"
+                              value={step.text}
+                              onChange={(e) => {
+                                const newSteps = [...editMicroSteps];
+                                newSteps[idx].text = e.target.value;
+                                setEditMicroSteps(newSteps);
+                              }}
+                              className="flex-1 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                              placeholder={`Step ${idx + 1}`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setEditMicroSteps(prev => prev.filter((_, i) => i !== idx))}
+                              className="text-gray-400 hover:text-red-500"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEditMicroSteps([...editMicroSteps, { id: crypto.randomUUID(), text: '', completed: false }])}
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                      >
+                        <Plus size={12} /> Add Micro-step
+                      </button>
                     </div>
 
                     {/* Actions */}

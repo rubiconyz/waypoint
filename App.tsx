@@ -937,29 +937,32 @@ const App: React.FC = () => {
     }
   };
 
-  const addHabit = (title: string, category: string, frequency: HabitFrequency, targetDuration?: number) => {
+  const handleAddHabit = (title: string, category: string, frequency: HabitFrequency, targetDuration?: number, microSteps?: { id: string; text: string; completed: boolean }[]) => {
     const newHabit: Habit = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       title,
       category,
       streak: 0,
-      history: {},
       frequency,
+      history: {},
       createdAt: new Date().toISOString(),
-      ...(targetDuration && { targetDuration })
+      ...(targetDuration !== undefined && { targetDuration }),
+      ...(microSteps !== undefined && { microSteps })
     };
-    setHabits([...habits, newHabit]);
-
-    // ANTI-EXPLOIT: Track total habits created (never decreases)
+    const updatedHabits = [...habits, newHabit];
+    setHabits(updatedHabits); // ANTI-EXPLOIT: Track total habits created (never decreases)
     const newTotal = Math.max(totalHabitsCreated, habits.length + 1);
     setTotalHabitsCreated(newTotal);
     localStorage.setItem(TOTAL_HABITS_KEY, newTotal.toString());
   };
 
-  const editHabit = (id: string, updates: Partial<Habit>) => {
-    setHabits(prev => prev.map(habit =>
-      habit.id === id ? { ...habit, ...updates } : habit
-    ));
+  const handleEditHabit = (id: string, updates: Partial<Habit>) => {
+    setHabits(prev => prev.map(h => {
+      if (h.id !== id) return h;
+      // If we are updating simple fields, just merge them
+      // Ensure we preserve history and id unless explicitly told otherwise (which shouldn't happen here)
+      return { ...h, ...updates };
+    }));
   };
 
   const deleteHabit = async (id: string) => {
@@ -1290,8 +1293,8 @@ const App: React.FC = () => {
               <HabitList
                 habits={habits}
                 onUpdateStatus={updateHabitStatus}
-                onAddHabit={addHabit}
-                onEditHabit={editHabit}
+                onAddHabit={handleAddHabit}
+                onEditHabit={handleEditHabit}
                 onDeleteHabit={deleteHabit}
                 onReorderHabits={reorderHabits}
                 isTransparent={wallpaper !== 'none'}

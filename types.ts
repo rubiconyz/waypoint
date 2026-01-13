@@ -21,6 +21,7 @@ export interface Habit {
   targetDuration?: number; // Optional target duration in minutes for timed habits
   order?: number; // Persistence for drag-and-drop ordering
   completedDates?: string[]; // Deprecated
+  microSteps?: { id: string; text: string; completed: boolean }[]; // ADHD Micro-steps
 }
 
 export enum AspectRatio {
