@@ -772,7 +772,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in pt-24 pb-12">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Analytics Dashboard</h2>
         <span className="text-sm text-gray-500 dark:text-gray-400">Overview</span>
