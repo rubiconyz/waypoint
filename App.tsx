@@ -1235,18 +1235,18 @@ const App: React.FC = () => {
         </div>
       </header>
       {/* Wallpaper Background Layer */}
+      {/* Wallpaper Background Layer */}
       {activeTab === 'tracker' && wallpaper !== 'none' && (
         <div
-          className={`fixed inset-0 -z-10 transition-all duration-700 bg-cover bg-center bg-no-repeat ${wallpaper === 'ocean' ? 'bg-gradient-to-br from-blue-100 to-cyan-200 dark:from-blue-900/40 dark:to-cyan-900/40' :
-            wallpaper === 'forest' ? 'bg-gradient-to-br from-emerald-100 to-teal-200 dark:from-emerald-900/40 dark:to-teal-900/40' :
-              wallpaper === 'midnight' ? 'bg-gradient-to-br from-slate-900 to-indigo-900' :
-                'bg-[#F3F4F6] dark:bg-[#0f1115]'
-            }`}
+          className="fixed inset-0 -z-10 transition-all duration-700 bg-cover bg-center bg-no-repeat bg-[#F3F4F6] dark:bg-[#0f1115]"
           style={{
             backgroundImage:
-              wallpaper === 'mountains' ? 'url(https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80)' :
-                wallpaper === 'sunset' ? 'url(https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&q=80)' :
-                  undefined
+              wallpaper === 'sunset' ? "url('/assets/wallpapers/sunset.jpg')" :
+                wallpaper === 'countryside' ? "url('/assets/wallpapers/countryside.jpg')" :
+                  wallpaper === 'ocean' ? "url('/assets/wallpapers/ocean.jpg')" :
+                    wallpaper === 'forest' ? "url('/assets/wallpapers/forest.jpg')" :
+                      wallpaper === 'midnight' ? "url('/assets/wallpapers/midnight.jpg')" :
+                        undefined
           }}
         />
       )}
