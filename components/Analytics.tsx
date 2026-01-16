@@ -1074,16 +1074,44 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
                   catRates[h.category] = 0;
                 }
                 catCounts[h.category]++;
-                // Use last 30 days history for rate
+
+                // Smart Rate Calculation (Active days only)
                 const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const created = h.createdAt ? new Date(h.createdAt) : new Date(0);
+                created.setHours(0, 0, 0, 0);
+
                 let completions = 0;
+                let opportunities = 0;
+
                 for (let i = 0; i < 30; i++) {
                   const d = new Date();
                   d.setDate(today.getDate() - i);
-                  const dateStr = getLocalDateString(d);
-                  if (h.history[dateStr] === 'completed') completions++;
+                  d.setHours(0, 0, 0, 0);
+
+                  // Only count if habit existed
+                  if (d >= created) {
+                    const dateStr = getLocalDateString(d);
+                    const dayIdx = d.getDay();
+
+                    // Check if due (Daily or Custom)
+                    let isDue = true;
+                    if (h.frequency.type === 'custom' && !h.frequency.days.includes(dayIdx)) {
+                      isDue = false;
+                    }
+
+                    if (isDue) {
+                      opportunities++;
+                      if (h.history[dateStr] === 'completed') completions++;
+                    }
+                  }
                 }
-                catRates[h.category] += completions > 0 ? (completions / 30) : 0; // Avg completion
+
+                // If no opportunities (e.g. created today but not due yet), treat as 100% to avoid penalty?
+                // Or 0? Let's treat as 0 but valid if it strictly starts tomorrow.
+                // Better: if opportunities is 0, ignore this habit from stats or default to 0.
+                const rate = opportunities > 0 ? (completions / opportunities) : 0;
+                catRates[h.category] += rate;
               });
 
               // Average per category (0-100 scale)
@@ -1094,17 +1122,28 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
 
               if (categoryScores.length === 0) return <p className="text-gray-400 text-sm text-center">Add habits to see your harmony score.</p>;
 
-              // 1. Calculate Harmony (Standard Deviation based)
+              // 1. Calculate Harmony
+              // Uses Coefficient of Variation (CV) for stricter balance checking
               const values = categoryScores.map(c => c.score);
               const mean = values.reduce((a, b) => a + b, 0) / values.length;
-              const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
-              const stdDev = Math.sqrt(variance);
 
-              // Score: 100 - (SD). Lower SD = Higher Balance.
-              // A standard deviation of >30 is very high unbalance. >50 is extreme.
-              // Let's map SD of 0 -> 100, SD of 40 -> 0.
-              // Formula: Math.max(0, 100 - (stdDev * 2.5))
-              const harmonyScore = Math.round(Math.max(0, 100 - (stdDev * 2.5)));
+              let harmonyScore = 0;
+
+              if (mean > 0) {
+                const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
+                const stdDev = Math.sqrt(variance);
+
+                // Penalty factor: How much deviation is allowed?
+                // A CV of 0.5 (Mean 50, SD 25) should result in a low score (e.g. 50).
+                // Formula: 100 * (1 - CV)
+                const cv = stdDev / mean;
+                // Clamp CV to 1 (if SD > mean, score is 0)
+                harmonyScore = Math.round(Math.max(0, 100 * (1 - cv)));
+              }
+
+              // Edge case: If Mean is 0 (all zeros), Harmony is technically 100 (Balanced failure)
+              // But that feels wrong for a "Score". Let's handle all-zeros as 0 harmony for motivation.
+              if (mean === 0) harmonyScore = 0;
 
               // 2. Identify Weakest Link (Lowest score)
               const sorted = [...categoryScores].sort((a, b) => a.score - b.score);
