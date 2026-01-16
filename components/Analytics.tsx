@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Habit } from '../types';
-import { TrendingUp, Calendar, Award, Activity, ChevronDown, Flame, Trophy, AlertTriangle, Clock, TrendingDown, Minus, Flag, Hexagon } from 'lucide-react';
+import { TrendingUp, Calendar, Award, Activity, ChevronDown, Flame, Trophy, AlertTriangle, Clock, TrendingDown, Minus, Flag, Hexagon, Scale, Target } from 'lucide-react';
 import { RadarChart } from './RadarChart';
 
 interface AnalyticsProps {
@@ -274,6 +274,7 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
   return (
     <div className="mt-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 space-y-6 animate-fade-in border border-gray-100 dark:border-gray-700">
 
+
       {/* 1. HERO STATS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
@@ -505,9 +506,89 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
   );
 };
 
+// Sub-component: Insight Card
+const InsightCard = ({ icon: Icon, title, value, description, trend, trendLabel, color = 'blue' }: any) => (
+  <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col h-full relative overflow-hidden group">
+    <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-500/5 rounded-full -mr-10 -mt-10 transition-transform group-hover:scale-150`} />
+
+    <div className="flex items-start justify-between mb-3 relative z-10">
+      <div className={`p-2 rounded-lg bg-${color}-50 dark:bg-${color}-900/20 text-${color}-600 dark:text-${color}-400`}>
+        <Icon size={20} />
+      </div>
+      {trend && (
+        <div className={`flex items-center gap-1 text-xs font-bold ${trend === 'up' ? 'text-green-500' : 'text-red-500'} bg-white dark:bg-gray-900 px-2 py-1 rounded-full shadow-sm`}>
+          {trend === 'up' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+          {trendLabel}
+        </div>
+      )}
+    </div>
+
+    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 relative z-10">{title}</h4>
+    <div className="text-2xl font-bold text-gray-900 dark:text-white mb-2 relative z-10">{value}</div>
+    <p className="text-xs text-gray-400 relative z-10">{description}</p>
+  </div>
+);
+
 export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
   // State for expanded habit detail
   const [expandedHabitId, setExpandedHabitId] = useState<string | null>(null);
+
+  const insights = useMemo(() => {
+    if (habits.length === 0) return null;
+
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    // const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+
+    // 1. Strongest Habit (Best rate this month)
+    let strongestHabit = null;
+    let strongestRate = -1;
+
+    // 2. Monthly Growth
+    let currentMonthTotal = 0;
+    let currentMonthOpportunities = 0;
+    let prevMonthTotal = 0;
+    let prevMonthOpportunities = 0;
+
+    habits.forEach(h => {
+      // Strongest Habit Logic
+      const stats = getHabitDetailStats(h);
+
+      const currentMonthStat = stats.last6Months[stats.last6Months.length - 1];
+      if (currentMonthStat && currentMonthStat.rate > strongestRate) {
+        strongestRate = currentMonthStat.rate;
+        strongestHabit = h;
+      }
+
+      // Monthly Growth Logic
+      const prevMonthStat = stats.last6Months[stats.last6Months.length - 2];
+      if (currentMonthStat) {
+        currentMonthTotal += currentMonthStat.rate;
+        currentMonthOpportunities++;
+      }
+      if (prevMonthStat) {
+        prevMonthTotal += prevMonthStat.rate;
+        prevMonthOpportunities++;
+      }
+    });
+
+    const avgCurrentRate = currentMonthOpportunities > 0 ? Math.round(currentMonthTotal / currentMonthOpportunities) : 0;
+    const avgPrevRate = prevMonthOpportunities > 0 ? Math.round(prevMonthTotal / prevMonthOpportunities) : 0;
+    const growth = avgCurrentRate - avgPrevRate;
+
+    return {
+      strongest: {
+        name: strongestHabit ? (strongestHabit as Habit).title : 'N/A',
+        rate: strongestRate,
+        icon: strongestHabit ? (strongestHabit as Habit).category : 'Award'
+      },
+      growth: {
+        value: growth,
+        current: avgCurrentRate,
+        prev: avgPrevRate
+      }
+    };
+  }, [habits]);
 
   const summary = useMemo(() => {
     const totalHabits = habits.length;
@@ -697,28 +778,40 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
         <span className="text-sm text-gray-500 dark:text-gray-400">Overview</span>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4 transition-colors">
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
-            <Activity size={24} />
+      {/* 0. INSIGHTS SECTION */}
+      {insights && (
+        <>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <Hexagon size={20} className="text-blue-500" />
+            Insights
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <InsightCard
+              icon={TrendingUp}
+              title="Strongest Habit"
+              value={insights.strongest.name}
+              description={`Leading with ${insights.strongest.rate}% completion rate this month.`}
+              color="indigo"
+            />
+            <InsightCard
+              icon={Activity}
+              title="Monthly Growth"
+              value={`${insights.growth.value > 0 ? '+' : ''}${insights.growth.value}%`}
+              description={insights.growth.value >= 0 ? "You're improving compared to last month!" : "Slight dip compared to last month."}
+              trend={insights.growth.value >= 0 ? 'up' : 'down'}
+              trendLabel={`${Math.abs(insights.growth.value)}%`}
+              color={insights.growth.value >= 0 ? 'green' : 'orange'}
+            />
+            <InsightCard
+              icon={Award}
+              title="Consistency Score"
+              value={summary.completionRate + '%'}
+              description="Overall adherence across all active habits."
+              color="blue"
+            />
           </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Completion Rate</p>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{summary.completionRate}%</h3>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4 transition-colors">
-          <div className="p-3 bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-lg">
-            <TrendingUp size={24} />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Perfect Streak</p>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{summary.bestStreak} <span className="text-sm font-normal text-gray-400 dark:text-gray-500">days</span></h3>
-          </div>
-        </div>
-      </div>
+        </>
+      )}
 
       {/* Heatmap Section */}
       <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm transition-colors overflow-hidden">
@@ -959,47 +1052,107 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
           </div>
         </div>
 
-        {/* CATEGORY BREAKDOWN STATS */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-          <h4 className="font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-            <Trophy size={18} className="text-yellow-500" />
-            Top Categories
-          </h4>
+        {/* HARMONY SCORE & FOCUS (Replaces Weekly Cycle) */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col justify-between">
+          <div>
+            <h4 className="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+              <Scale size={18} className="text-teal-500" />
+              Harmony Score
+            </h4>
+            <p className="text-xs text-gray-500 mb-6">Measure of your life balance</p>
+          </div>
 
-          <div className="space-y-4">
+          <div className="flex-1 flex flex-col justify-center gap-8">
             {(() => {
-              const categoryCounts: Record<string, number> = {};
+              // Calculate category stats
+              const catRates: Record<string, number> = {};
+              const catCounts: Record<string, number> = {};
+
               habits.forEach(h => {
-                categoryCounts[h.category] = (categoryCounts[h.category] || 0) + 1;
+                if (!catCounts[h.category]) {
+                  catCounts[h.category] = 0;
+                  catRates[h.category] = 0;
+                }
+                catCounts[h.category]++;
+                // Use last 30 days history for rate
+                const today = new Date();
+                let completions = 0;
+                for (let i = 0; i < 30; i++) {
+                  const d = new Date();
+                  d.setDate(today.getDate() - i);
+                  const dateStr = getLocalDateString(d);
+                  if (h.history[dateStr] === 'completed') completions++;
+                }
+                catRates[h.category] += completions > 0 ? (completions / 30) : 0; // Avg completion
               });
 
-              const sorted = Object.entries(categoryCounts)
-                .sort(([, a], [, b]) => b - a)
-                .slice(0, 4);
+              // Average per category (0-100 scale)
+              const categoryScores = Object.keys(catRates).map(cat => {
+                const avg = catCounts[cat] > 0 ? (catRates[cat] / catCounts[cat]) * 100 : 0;
+                return { category: cat, score: Math.round(avg) };
+              });
 
-              return sorted.map(([cat, count], i) => (
-                <div key={cat} className="flex items-center gap-4">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm
-                                ${i === 0 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
-                      i === 1 ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' :
-                        'bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400'}
-                             `}>
-                    {i + 1}
+              if (categoryScores.length === 0) return <p className="text-gray-400 text-sm text-center">Add habits to see your harmony score.</p>;
+
+              // 1. Calculate Harmony (Standard Deviation based)
+              const values = categoryScores.map(c => c.score);
+              const mean = values.reduce((a, b) => a + b, 0) / values.length;
+              const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
+              const stdDev = Math.sqrt(variance);
+
+              // Score: 100 - (SD). Lower SD = Higher Balance.
+              // A standard deviation of >30 is very high unbalance. >50 is extreme.
+              // Let's map SD of 0 -> 100, SD of 40 -> 0.
+              // Formula: Math.max(0, 100 - (stdDev * 2.5))
+              const harmonyScore = Math.round(Math.max(0, 100 - (stdDev * 2.5)));
+
+              // 2. Identify Weakest Link (Lowest score)
+              const sorted = [...categoryScores].sort((a, b) => a.score - b.score);
+              const weakest = sorted[0];
+
+              return (
+                <>
+                  {/* HARMONY DISPLAY */}
+                  <div className="flex items-center gap-6">
+                    <div className="relative w-24 h-24 flex items-center justify-center">
+                      {/* Circle Background */}
+                      <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                        <path className="text-gray-100 dark:text-gray-700" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
+                        <path className={`${harmonyScore > 80 ? 'text-teal-500' : harmonyScore > 50 ? 'text-blue-500' : 'text-orange-500'} transition-all duration-1000 ease-out`}
+                          strokeDasharray={`${harmonyScore}, 100`}
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none" stroke="currentColor" strokeWidth="3" />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-2xl font-bold text-gray-900 dark:text-white">{harmonyScore}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-gray-900 dark:text-white">
+                        {harmonyScore >= 80 ? 'Excellent Balance' : harmonyScore >= 60 ? 'Good Balance' : 'Unbalanced'}
+                      </h5>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed max-w-[150px]">
+                        {harmonyScore >= 80 ? "You're giving attention to all areas of your life!" : "Some areas are getting left behind."}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h5 className="font-medium text-gray-900 dark:text-white text-sm">{cat}</h5>
-                    <p className="text-xs text-gray-500">{count} habits</p>
+
+                  {/* WEAKEST LINK */}
+                  <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 p-4 rounded-xl flex items-start gap-3">
+                    <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg text-orange-600 dark:text-orange-400 shrink-0">
+                      <Target size={20} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wide mb-0.5">Focus Area</p>
+                      <h5 className="font-bold text-gray-900 dark:text-white">{weakest.category}</h5>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                        Trailing at <span className="font-bold">{weakest.score}%</span>. Try doing just one small task in this category today.
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-xs font-semibold px-2 py-1 rounded bg-gray-50 dark:bg-gray-700/50 text-gray-500">
-                    {Math.round((count / habits.length) * 100)}% of total
-                  </div>
-                </div>
-              ));
+                </>
+              );
             })()}
-
-            {habits.length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-4">No habits yet. Start building!</p>
-            )}
           </div>
         </div>
       </div>
