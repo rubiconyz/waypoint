@@ -36,8 +36,8 @@ export const ChallengesTab: React.FC<ChallengesTabProps> = ({
     if (!IS_ENABLED) {
         return (
             <div className="flex flex-col items-center justify-center py-20 animate-fade-in text-center px-6">
-                <div className="w-20 h-20 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mb-6">
-                    <Lock size={36} className="text-indigo-500" />
+                <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-6">
+                    <Lock size={36} className="text-blue-500" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                     Challenges Coming Soon
@@ -96,7 +96,7 @@ export const ChallengesTab: React.FC<ChallengesTabProps> = ({
                 <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
                         <div className="flex items-center justify-between mr-2">
-                            <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-indigo-500 transition-colors">
+                            <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-blue-500 transition-colors">
                                 {challenge.title}
                             </h3>
 
@@ -108,7 +108,7 @@ export const ChallengesTab: React.FC<ChallengesTabProps> = ({
                                         setEditingChallenge(challenge);
                                         setIsCreateModalOpen(true);
                                     }}
-                                    className="p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                                    className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
                                     title="Edit Challenge"
                                 >
                                     <Edit2 size={14} />
@@ -130,7 +130,7 @@ export const ChallengesTab: React.FC<ChallengesTabProps> = ({
                         </p>
                     </div>
                     {isActive ? (
-                        <div className="flex items-center gap-1 text-xs font-medium text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded-lg shrink-0">
+                        <div className="flex items-center gap-1 text-xs font-medium text-blue-500 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg shrink-0">
                             <Clock size={12} />
                             {daysRemaining}d left
                         </div>
@@ -163,7 +163,7 @@ export const ChallengesTab: React.FC<ChallengesTabProps> = ({
                         <span className="text-xs">{challenge.participants.length} climbers</span>
                     </div>
 
-                    <ChevronRight size={16} className="text-gray-300 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
+                    <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-400 group-hover:translate-x-1 transition-all" />
                 </div>
             </div>
         );
@@ -215,7 +215,7 @@ export const ChallengesTab: React.FC<ChallengesTabProps> = ({
                             </button>
                             <button
                                 onClick={() => setIsCreateModalOpen(true)}
-                                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white rounded-xl font-medium shadow-lg transition-all"
+                                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-lg transition-all"
                             >
                                 <Plus size={18} />
                                 New Challenge
@@ -240,8 +240,8 @@ export const ChallengesTab: React.FC<ChallengesTabProps> = ({
                     {/* Empty State */}
                     {challenges.length === 0 && (
                         <div className="text-center py-16">
-                            <div className="w-20 h-20 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Users size={36} className="text-indigo-500" />
+                            <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Users size={36} className="text-blue-500" />
                             </div>
                             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                                 No challenges yet
@@ -258,7 +258,7 @@ export const ChallengesTab: React.FC<ChallengesTabProps> = ({
                                 </button>
                                 <button
                                     onClick={() => setIsCreateModalOpen(true)}
-                                    className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
+                                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
                                 >
                                     Create Challenge
                                 </button>

@@ -6,17 +6,29 @@ interface SettingsSidebarProps {
     onClose: () => void;
     currentWallpaper?: string;
     onSetWallpaper?: (id: string) => void;
+    activeTab?: string;
+    onSwitchTab?: (tab: string) => void;
 }
 
 export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
     isOpen,
     onClose,
     currentWallpaper = 'none',
-    onSetWallpaper = () => { }
+    onSetWallpaper = () => { },
+    activeTab,
+    onSwitchTab
 }) => {
     // Determine modifier key based on OS
     const isMac = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
     const modKey = isMac ? 'Cmd' : 'Ctrl';
+
+    const NAV_ITEMS = [
+        { id: 'tracker', label: 'Tracker', icon: <LayoutDashboard size={18} /> },
+        { id: 'analytics', label: 'Analytics', icon: <BarChart2 size={18} /> },
+        { id: 'badges', label: 'Badges', icon: <Award size={18} /> },
+        { id: 'challenges', label: 'Challenges', icon: <Mountain size={18} /> }, // Using Mountain explicitly or Users if preferred? reusing import
+        { id: 'mountain', label: 'Mountain', icon: <Mountain size={18} /> }
+    ];
 
     const WALLPAPERS = [
         { id: 'none', label: 'Default', class: 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800' },
@@ -57,6 +69,34 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
 
                     <div className="space-y-8 overflow-y-auto flex-1">
 
+                        {/* Mobile Navigation (Hidden on Desktop) */}
+                        {onSwitchTab && activeTab && (
+                            <div className="md:hidden">
+                                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                    <LayoutDashboard className="w-3 h-3" />
+                                    Navigate
+                                </h3>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {NAV_ITEMS.map(item => (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => {
+                                                onSwitchTab(item.id);
+                                                onClose();
+                                            }}
+                                            className={`p-3 rounded-xl border flex items-center gap-3 transition-colors ${activeTab === item.id
+                                                ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 font-medium'
+                                                : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                                }`}
+                                        >
+                                            {item.icon}
+                                            <span className="text-sm">{item.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Wallpaper Section */}
                         {onSetWallpaper && (
                             <div>
@@ -71,7 +111,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                                             onClick={() => onSetWallpaper(wp.id)}
                                             className={`
                                                 relative aspect-square rounded-xl overflow-hidden shadow-sm transition-all
-                                                ${currentWallpaper === wp.id ? 'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-gray-900 scale-95' : 'hover:scale-105 hover:shadow-md'}
+                                                ${currentWallpaper === wp.id ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900 scale-95' : 'hover:scale-105 hover:shadow-md'}
                                             `}
                                         >
                                             <div className={`w-full h-full ${wp.class}`} style={wp.style} />
@@ -79,7 +119,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                                                 {wp.label}
                                             </span>
                                             {currentWallpaper === wp.id && (
-                                                <div className="absolute top-1 right-1 bg-indigo-500 rounded-full p-0.5">
+                                                <div className="absolute top-1 right-1 bg-blue-500 rounded-full p-0.5">
                                                     <Check size={10} className="text-white" />
                                                 </div>
                                             )}
@@ -90,7 +130,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                         )}
 
                         {/* Shortcuts Section */}
-                        <div>
+                        <div className="hidden md:block">
                             <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Shortcuts</h3>
                             <div className="space-y-2">
                                 <ShortcutItem
@@ -107,7 +147,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                         </div>
 
                         {/* Navigation Section */}
-                        <div>
+                        <div className="hidden md:block">
                             <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Navigation</h3>
                             <div className="space-y-2">
                                 <ShortcutItem
@@ -133,7 +173,7 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                             </div>
                         </div>
 
-                        <div className="mt-8 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
+                        <div className="hidden md:block mt-8 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
                             <p className="text-sm text-indigo-700 dark:text-indigo-300">
                                 Tip: Shortcuts work anywhere in the app!
                             </p>

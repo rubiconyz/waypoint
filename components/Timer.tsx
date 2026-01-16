@@ -47,9 +47,15 @@ export const Timer: React.FC<TimerProps> = ({
     const remainingPercent = Math.max((remainingSeconds / targetSeconds) * 100, 0);
 
     // Force state reset when habitId changes (Double-safety against instance reuse)
+    // Force state reset when habitId changes (Double-safety against instance reuse)
     useEffect(() => {
         const saved = localStorage.getItem(STORAGE_KEY);
-        setRemainingSeconds(saved ? parseInt(saved, 10) : targetDuration * 60);
+        const maxSeconds = targetDuration * 60;
+        // Fix: Clamp loaded value to current target to prevent "hidden buttons" bug
+        // (e.g. if reducing duration from 5min -> 3min, remaining might be > target)
+        const loadedSeconds = saved ? parseInt(saved, 10) : maxSeconds;
+        setRemainingSeconds(Math.min(loadedSeconds, maxSeconds));
+
         setIsRunning(false);
         setIsCompleted(false);
     }, [habitId, STORAGE_KEY, targetDuration]); // Re-run if habitId changes
@@ -109,7 +115,7 @@ export const Timer: React.FC<TimerProps> = ({
                     <div className="relative w-12 h-12 flex-shrink-0">
                         <svg className="w-full h-full -rotate-90">
                             <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="4" className="text-gray-100 dark:text-gray-700" />
-                            <circle cx="24" cy="24" r="20" fill="none" stroke={isCompleted ? '#10b981' : '#6366f1'} strokeWidth="4" strokeLinecap="round"
+                            <circle cx="24" cy="24" r="20" fill="none" stroke={isCompleted ? '#10b981' : '#2563eb'} strokeWidth="4" strokeLinecap="round"
                                 strokeDasharray={`${2 * Math.PI * 20}`}
                                 strokeDashoffset={`${2 * Math.PI * 20 * (1 - remainingPercent / 100)}`}
                                 className="transition-all duration-300"
@@ -158,7 +164,7 @@ export const Timer: React.FC<TimerProps> = ({
                 <div className="absolute top-6 right-6 flex items-center gap-2">
                     <button
                         onClick={() => setIsCollapsed(true)}
-                        className="text-gray-400 hover:text-indigo-500 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+                        className="text-gray-400 hover:text-blue-500 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
                         title="Minimize"
                     >
                         <Minimize2 size={24} />
@@ -174,7 +180,7 @@ export const Timer: React.FC<TimerProps> = ({
 
                 {/* Header */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-full mb-4">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-4">
                         <span className="text-3xl">⏱️</span>
                     </div>
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
@@ -204,13 +210,13 @@ export const Timer: React.FC<TimerProps> = ({
                             cy="144"
                             r="130"
                             fill="none"
-                            stroke={isCompleted ? '#10b981' : '#6366f1'}
+                            stroke={isCompleted ? '#10b981' : '#2563eb'}
                             strokeWidth="12"
                             strokeLinecap="round"
                             strokeDasharray={`${2 * Math.PI * 130}`}
                             strokeDashoffset={`${2 * Math.PI * 130 * (1 - remainingPercent / 100)}`}
                             className="transition-all duration-300"
-                            style={{ filter: 'drop-shadow(0 0 8px rgba(99, 102, 241, 0.5))' }}
+                            style={{ filter: 'drop-shadow(0 0 8px rgba(37, 99, 235, 0.5))' }}
                         />
                     </svg>
 
@@ -223,7 +229,7 @@ export const Timer: React.FC<TimerProps> = ({
                             {isCompleted ? '✨ Complete!' : 'remaining'}
                         </div>
                         <div className="mt-2">
-                            <div className="text-sm text-indigo-600 dark:text-indigo-400 font-semibold">
+                            <div className="text-sm text-blue-600 dark:text-blue-400 font-semibold">
                                 {Math.round(remainingPercent)}%
                             </div>
                         </div>

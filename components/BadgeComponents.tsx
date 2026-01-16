@@ -54,8 +54,8 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({ badge, progress }) => {
     return (
         <div
             className={`relative p-4 rounded-xl border-2 transition-all ${isUnlocked
-                    ? 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-yellow-400 dark:border-yellow-600 shadow-md hover:shadow-lg'
-                    : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 opacity-60'
+                ? 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-yellow-400 dark:border-yellow-600 shadow-md hover:shadow-lg'
+                : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 opacity-60'
                 }`}
         >
             {!isUnlocked && (
@@ -85,7 +85,7 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({ badge, progress }) => {
                         </div>
                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                             <div
-                                className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full transition-all duration-500"
+                                className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full transition-all duration-500"
                                 style={{ width: `${percentage}%` }}
                             />
                         </div>

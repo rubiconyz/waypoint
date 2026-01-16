@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Habit } from '../types';
-import { TrendingUp, Calendar, Award, Activity, ChevronDown, Flame, Trophy, AlertTriangle, Clock, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, Calendar, Award, Activity, ChevronDown, Flame, Trophy, AlertTriangle, Clock, TrendingDown, Minus, Flag, Hexagon } from 'lucide-react';
+import { RadarChart } from './RadarChart';
 
 interface AnalyticsProps {
   habits: Habit[];
@@ -344,8 +345,38 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
               const isToday = day === new Date().getDate() && month === new Date().getMonth() && year === new Date().getFullYear();
               const isFuture = year > new Date().getFullYear() || (year === new Date().getFullYear() && month > new Date().getMonth()) || (year === new Date().getFullYear() && month === new Date().getMonth() && day > new Date().getDate());
 
-              let bgClass = isFuture ? 'bg-gray-50 dark:bg-gray-800/50 text-gray-300 dark:text-gray-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400';
+              // Check if this is the creation date (Visual only, failsafe)
+              let isCreationDate = false;
+              let isAfterCreation = false;
 
+              try {
+                if (habit.createdAt) {
+                  // Normalize: Extract YYYY-MM-DD part only to avoid timezone shifts
+                  const dateStr = habit.createdAt.split('T')[0];
+                  const [cYear, cMonth, cDay] = dateStr.split('-').map(Number);
+
+                  // Create comparable values (YYYYMMDD integer) for simple comparison
+                  const currentVal = year * 10000 + (month + 1) * 100 + day;
+                  const createdVal = cYear * 10000 + cMonth * 100 + cDay;
+
+                  if (currentVal === createdVal) isCreationDate = true;
+                  if (currentVal >= createdVal) isAfterCreation = true;
+                }
+              } catch (e) {
+                // Ignore errors
+              }
+
+              // Default: Pre-Start (Gray)
+              let bgClass = 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500';
+
+              if (isFuture) {
+                bgClass = 'bg-gray-50 dark:bg-gray-800/50 text-gray-300 dark:text-gray-600';
+              } else if (isAfterCreation) {
+                // Missed (Red) - Default state for days after creation that aren't done
+                bgClass = 'bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400';
+              }
+
+              // Status Overrides
               if (status === 'completed') bgClass = 'bg-green-500 text-white shadow-sm';
               else if (status === 'partial') bgClass = 'bg-yellow-500 text-white';
               else if (status === 'skipped') bgClass = 'bg-gray-200 dark:bg-gray-600 text-gray-400 opacity-50';
@@ -353,12 +384,45 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
               return (
                 <div
                   key={day}
-                  className={`aspect-square rounded-md flex items-center justify-center text-xs font-medium transition-all ${bgClass} ${isToday ? 'ring-2 ring-indigo-500 ring-offset-1 dark:ring-offset-gray-800' : ''}`}
+                  className={`relative aspect-square rounded-md flex items-center justify-center text-xs font-medium transition-all ${bgClass} 
+                    ${isToday ? 'ring-2 ring-indigo-500 ring-offset-1 dark:ring-offset-gray-800' : ''}
+                    ${isCreationDate ? 'border-2 border-dashed border-yellow-500 dark:border-yellow-400' : ''}
+                  `}
+                  title={isCreationDate ? 'Habit Created' : undefined}
                 >
+                  {isCreationDate && (
+                    <Flag
+                      className="absolute top-0.5 right-0.5 text-yellow-500 fill-yellow-500 pointer-events-none z-10"
+                      size={8}
+                      style={{ width: '8px', height: '8px' }}
+                    />
+                  )}
                   {day}
                 </div>
               );
             })}
+          </div>
+
+          {/* Legend */}
+          <div className="flex items-center justify-center gap-3 mt-3 text-[10px] text-gray-400">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+              <span>Done</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-red-100 dark:bg-red-900/50 border border-red-200 dark:border-red-800"></div>
+              <span>Missed</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-gray-200 dark:bg-gray-600"></div>
+              <span>Pre-Start</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="relative w-3 h-3 flex items-center justify-center border border-dashed border-yellow-500 rounded-[1px]">
+                <Flag size={6} className="text-yellow-500 fill-yellow-500" />
+              </div>
+              <span>Started</span>
+            </div>
           </div>
         </div>
 
@@ -555,6 +619,8 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
   // 2. Generate Heatmap Data (Current Year Jan 1 - Dec 31)
   const heatmapData = useMemo(() => {
     const days = getYearDates();
+    const currentYear = new Date().getFullYear();
+    const startDayIndex = new Date(currentYear, 0, 1).getDay(); // 0=Sun, 1=Mon, etc.
 
     // Pre-parse habit creation dates for efficiency
     const habitCreationDates = habits.map(h => ({
@@ -592,7 +658,9 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
       };
     });
 
-    return data;
+    // Add padding for start of year to align grid rows (Sun-Sat)
+    const padding = new Array(startDayIndex).fill(null);
+    return [...padding, ...data];
   }, [habits]);
 
   // 3. Per Habit Performance
@@ -679,13 +747,16 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
                   </div>
 
                   <div className="grid grid-rows-7 grid-flow-col gap-1.5">
-                    {heatmapData.map((day) => (
-                      <div
-                        key={day.date}
-                        className={`w-3 h-3 md:w-3.5 md:h-3.5 rounded-[2px] ${getColor(day.intensity)} hover:scale-125 transition-transform cursor-default`}
-                        title={`${day.date}: ${Math.round(day.intensity * 100)}%`}
-                      />
-                    ))}
+                    {heatmapData.map((day, idx) => {
+                      if (!day) return <div key={`empty-${idx}`} />;
+                      return (
+                        <div
+                          key={day.date}
+                          className={`w-3 h-3 md:w-3.5 md:h-3.5 rounded-[2px] ${getColor(day.intensity)} hover:scale-125 transition-transform cursor-default`}
+                          title={`${day.date}: ${Math.round(day.intensity * 100)}%`}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -816,6 +887,121 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* 4. LIFE BALANCE SPIDER CHART & STATS ROW */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 animate-slide-up-delay-2">
+        {/* SPIDER CHART */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col items-center">
+          <h4 className="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2 self-start w-full">
+            <Hexagon size={18} className="text-purple-500" />
+            Life Balance
+          </h4>
+          <p className="text-xs text-gray-500 mb-6 self-start">Consistency across categories</p>
+
+          <div className="w-full flex justify-center">
+            {(() => {
+              // Calculate Category Scores
+              const categoryStats = useMemo(() => {
+                const stats: Record<string, { total: number; completed: number }> = {};
+
+                habits.forEach(habit => {
+                  if (!stats[habit.category]) {
+                    stats[habit.category] = { total: 0, completed: 0 };
+                  }
+
+                  // Check history for completions
+                  // We'll look at the last 30 days for relevance
+                  const today = new Date();
+                  for (let i = 0; i < 30; i++) {
+                    const d = new Date();
+                    d.setDate(today.getDate() - i);
+                    const dateStr = d.toISOString().split('T')[0];
+
+                    // Simplified consistency: 
+                    // If habit existed on that day (createdAt <= date), calculate it
+                    const created = habit.createdAt ? new Date(habit.createdAt) : new Date(0);
+                    if (d >= created) {
+                      stats[habit.category].total += 1;
+
+                      if (habit.history[dateStr] === 'completed') {
+                        stats[habit.category].completed += 1;
+                      }
+                    }
+                  }
+                });
+
+                // Convert to array
+                return Object.entries(stats).map(([label, data]) => ({
+                  label,
+                  value: data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0
+                }));
+              }, [habits]);
+
+              if (categoryStats.length < 3) {
+                return (
+                  <div className="h-64 flex flex-col items-center justify-center text-center text-gray-400 p-8 border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-xl w-full">
+                    <Hexagon size={32} className="mb-2 opacity-50" />
+                    <p className="text-sm font-medium">Not enough categories</p>
+                    <p className="text-xs mt-1">Add habits in at least 3 distinct categories<br />to see your life balance web.</p>
+                  </div>
+                );
+              }
+
+              return (
+                <RadarChart
+                  data={categoryStats}
+                  size={280}
+                  color="#2563eb" // Blue-600
+                />
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* CATEGORY BREAKDOWN STATS */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+          <h4 className="font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <Trophy size={18} className="text-yellow-500" />
+            Top Categories
+          </h4>
+
+          <div className="space-y-4">
+            {(() => {
+              const categoryCounts: Record<string, number> = {};
+              habits.forEach(h => {
+                categoryCounts[h.category] = (categoryCounts[h.category] || 0) + 1;
+              });
+
+              const sorted = Object.entries(categoryCounts)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 4);
+
+              return sorted.map(([cat, count], i) => (
+                <div key={cat} className="flex items-center gap-4">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm
+                                ${i === 0 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                      i === 1 ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' :
+                        'bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400'}
+                             `}>
+                    {i + 1}
+                  </div>
+                  <div className="flex-1">
+                    <h5 className="font-medium text-gray-900 dark:text-white text-sm">{cat}</h5>
+                    <p className="text-xs text-gray-500">{count} habits</p>
+                  </div>
+                  <div className="text-xs font-semibold px-2 py-1 rounded bg-gray-50 dark:bg-gray-700/50 text-gray-500">
+                    {Math.round((count / habits.length) * 100)}% of total
+                  </div>
+                </div>
+              ));
+            })()}
+
+            {habits.length === 0 && (
+              <p className="text-sm text-gray-400 text-center py-4">No habits yet. Start building!</p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Habit Breakdown */}

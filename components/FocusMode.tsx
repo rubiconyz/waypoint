@@ -98,7 +98,7 @@ const BrownNoisePlayer = () => {
                     onClick={toggleNoise}
                     className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-medium transition-colors ${isPlaying
                         ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
-                        : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
                 >
                     {isPlaying ? <><Pause size={18} /> Pause</> : <><Play size={18} /> Play</>}
                 </button>

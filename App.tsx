@@ -8,7 +8,7 @@ import { MountainClimber } from './components/MountainClimber';
 import { AuthModal } from './components/AuthModal';
 import { Habit, HabitFrequency, Badge, BadgeProgress, Challenge } from './types';
 import { checkBadgeUnlocks } from './badges';
-import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, User, Menu, Command, Plus, Coins, Users } from 'lucide-react';
+import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, User, Menu, Command, Plus, Coins, Users, Cloud } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useAuth } from './contexts/AuthContext';
 import { SettingsSidebar } from './components/SettingsSidebar';
@@ -377,10 +377,21 @@ const App: React.FC = () => {
               createdAt: h.createdAt || creationDate
             };
           }
+          // MIGRATION 2: Fix corrupted history keys with spaces (introduced by bug)
+          const cleanHistory: any = {};
+          const dirtyHistory = h.history || {};
+
+          Object.keys(dirtyHistory).forEach(key => {
+            // Remove all spaces (e.g. "2024 -01 -13 " -> "2024-01-13")
+            const cleanKey = key.replace(/\s+/g, '');
+            cleanHistory[cleanKey] = dirtyHistory[key];
+          });
+
           return {
             ...h,
             frequency: h.frequency || { type: 'daily', days: [] },
-            createdAt: h.createdAt || earliestDate
+            createdAt: h.createdAt || earliestDate,
+            history: cleanHistory
           };
         });
       } catch (e) {
@@ -555,6 +566,12 @@ const App: React.FC = () => {
             title: "Earn Coins",
             content: "Every habit you complete earns you coins. Spend them on themes and upgrades!",
             position: 'bottom'
+          },
+          {
+            targetId: 'btn-auth-user',
+            title: "Sync Progress",
+            content: "Sign up to use Waypoint on multiple devices or not to lose the progress.",
+            position: 'left'
           }
         ]);
       }, 800);
@@ -1111,7 +1128,7 @@ const App: React.FC = () => {
         }`}>
         <div className="w-full px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="bg-indigo-600 p-2 rounded-lg">
+            <div className="bg-blue-600 p-2 rounded-lg">
               <Mountain className="text-white w-5 h-5" />
             </div>
             <h1 className="font-bold text-xl text-gray-900 dark:text-white tracking-tight">Waypoint</h1>
@@ -1144,7 +1161,7 @@ const App: React.FC = () => {
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
 
-            <nav className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg ml-1">
+            <nav className="hidden md:flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg ml-1">
               <button onClick={() => setActiveTab('tracker')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'tracker' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
                 <ListTodo size={16} />
                 <span className="hidden sm:inline">Tracker</span>
@@ -1160,9 +1177,6 @@ const App: React.FC = () => {
               <button onClick={() => setActiveTab('challenges')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'challenges' ? 'bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
                 <Users size={16} />
                 <span className="hidden sm:inline">Challenges</span>
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] px-1 rounded-full font-bold animate-bounce shadow-sm">
-                  New
-                </span>
               </button>
               <button id="nav-mountain" onClick={() => setActiveTab('mountain')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'mountain' ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
                 <Mountain size={16} />
@@ -1181,11 +1195,11 @@ const App: React.FC = () => {
                   <img
                     src={user.photoURL}
                     alt="Profile"
-                    className="w-8 h-8 rounded-full border-2 border-indigo-500"
+                    className="w-8 h-8 rounded-full border-2 border-blue-500"
                   />
                 ) : (
                   // Email initial for email/password sign-in
-                  <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-semibold text-sm border-2 border-indigo-500">
+                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold text-sm border-2 border-blue-500">
                     {user.email?.[0].toUpperCase()}
                   </div>
                 )}
@@ -1200,8 +1214,9 @@ const App: React.FC = () => {
               </div>
             ) : (
               <button
+                id="btn-auth-user"
                 onClick={() => setShowAuthModal(true)}
-                className="ml-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
+                className="ml-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
               >
                 <User size={16} />
                 <span className="hidden sm:inline">Sign In</span>
@@ -1225,30 +1240,43 @@ const App: React.FC = () => {
           className={`fixed inset-0 -z-10 transition-all duration-700 bg-cover bg-center bg-no-repeat ${wallpaper === 'ocean' ? 'bg-gradient-to-br from-blue-100 to-cyan-200 dark:from-blue-900/40 dark:to-cyan-900/40' :
             wallpaper === 'forest' ? 'bg-gradient-to-br from-emerald-100 to-teal-200 dark:from-emerald-900/40 dark:to-teal-900/40' :
               wallpaper === 'midnight' ? 'bg-gradient-to-br from-slate-900 to-indigo-900' :
-                wallpaper === 'minimalist' ? 'bg-gray-50 dark:bg-black' :
-                  ''
+                'bg-[#F3F4F6] dark:bg-[#0f1115]'
             }`}
           style={{
             backgroundImage:
-              wallpaper === 'sunset' ? 'url(/assets/wallpapers/sunset.jpg)' :
-                wallpaper === 'countryside' ? 'url(/assets/wallpapers/countryside.jpg)' :
-                  wallpaper === 'forest' ? 'url(/assets/wallpapers/forest.jpg)' :
-                    wallpaper === 'midnight' ? 'url(/assets/wallpapers/midnight.jpg)' :
-                      wallpaper === 'ocean' ? 'url(/assets/wallpapers/ocean.jpg)' :
-                        undefined
+              wallpaper === 'mountains' ? 'url(https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80)' :
+                wallpaper === 'sunset' ? 'url(https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&q=80)' :
+                  undefined
           }}
         />
       )}
 
+      {/* Global Action Button (Mobile Only) */}
+      {!isSettingsOpen && activeTab === 'tracker' && (
+        <button
+          onClick={() => {
+            // Trigger add habit logic (we need access to setIsAdding in HabitList, but it's internal state)
+            // Alternative: dispatch visible event or use context.
+            // For now, let's target the hidden button in HabitList header if present
+            document.getElementById('btn-new-habit')?.click();
+          }}
+          className={`md:hidden fixed bottom-24 right-6 w-14 h-14 rounded-2xl shadow-xl flex items-center justify-center text-white z-50 transition-all active:scale-95 ${wallpaper !== 'none'
+            ? 'bg-gradient-to-br from-indigo-500/75 to-purple-600/75 backdrop-blur-sm'
+            : 'bg-gradient-to-br from-indigo-500 to-purple-600'
+            }`}
+        >
+          <Plus size={28} strokeWidth={2.5} />
+        </button>
+      )}
       {/* Main Content Area */}
-      <main className="container mx-auto px-4 py-8 pb-24 md:pb-8 max-w-5xl">
+      <main className="w-full max-w-5xl mx-auto px-4 py-8 pb-24 md:pb-8">
         {activeTab === 'tracker' ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Stats Column - Order 1 on Mobile, Order 2 on Desktop (Right Side) */}
-            <div className="space-y-6 order-1 md:order-2 md:col-span-1">
+            {/* Stats Column - Order 2 on Mobile, Order 2 on Desktop (Right Side) */}
+            <div className="space-y-6 order-2 md:order-2 md:col-span-1">
               <div className={`rounded-xl p-6 text-white shadow-lg relative overflow-hidden ${(activeTab === 'tracker' && wallpaper !== 'none')
-                ? 'bg-gradient-to-br from-indigo-500/75 to-purple-600/75 backdrop-blur-sm'
-                : 'bg-gradient-to-br from-indigo-500 to-purple-600'
+                ? 'bg-blue-600/90 backdrop-blur-sm'
+                : 'bg-blue-600'
                 }`}>
                 <h3 className="text-lg font-semibold mb-2 relative z-10">Daily Progress</h3>
                 <div className="flex items-end gap-2 mb-1 relative z-10">
@@ -1282,14 +1310,16 @@ const App: React.FC = () => {
                       {perfectStreak} days
                     </span>
                   </div>
-                  <button onClick={() => setActiveTab('analytics')} className="w-full mt-2 py-2 text-sm text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors">
+                  <button onClick={() => setActiveTab('analytics')} className="w-full mt-2 py-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
                     View Full Analytics
                   </button>
                 </div>
               </div>
             </div>
 
-            <div className="order-2 md:order-1 md:col-span-2">
+            <div className="order-1 md:order-1 md:col-span-2">
+
+
               <HabitList
                 habits={habits}
                 onUpdateStatus={updateHabitStatus}
@@ -1375,6 +1405,8 @@ const App: React.FC = () => {
         onClose={() => setIsSettingsOpen(false)}
         currentWallpaper={wallpaper}
         onSetWallpaper={setWallpaper}
+        activeTab={activeTab}
+        onSwitchTab={(t) => setActiveTab(t as any)}
       />
 
       {/* Badge Notification */}
