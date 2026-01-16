@@ -1122,9 +1122,9 @@ const App: React.FC = () => {
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-200 ${(activeTab === 'tracker' && wallpaper !== 'none') ? 'bg-transparent' : 'bg-gray-50 dark:bg-gray-950'
       }`}>
-      <header className={`border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10 transition-colors ${(activeTab === 'tracker' && wallpaper !== 'none')
+      <header className={`border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50 transition-colors ${(activeTab === 'tracker' && wallpaper !== 'none')
         ? 'bg-white/60 dark:bg-black/60 backdrop-blur-xl border-white/20 dark:border-white/10'
-        : 'bg-white dark:bg-gray-900'
+        : 'bg-white dark:bg-gray-900 shadow-sm'
         }`}>
         <div className="w-full px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
