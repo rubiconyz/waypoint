@@ -52,7 +52,7 @@ export const GrowthChart: React.FC<GrowthChartProps> = ({ words }) => {
         let iter = new Date(calendarStart);
         let weekIndex = 1;
 
-        while (iter <= endOfMonth && weekIndex <= 5) { // Limit to 5 weeks max to fit UI
+        while (iter <= endOfMonth && weekIndex <= 6) { // Limit to 6 weeks max
             const weekStart = new Date(iter);
             const weekEnd = new Date(iter);
             weekEnd.setDate(weekEnd.getDate() + 6);

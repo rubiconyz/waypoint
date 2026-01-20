@@ -216,52 +216,86 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
     return habit.history[k4];
   };
 
-  // Calculate Weekly Completions (Last 4 weeks)
+  // Calculate Weekly Completions for the SELECTED month
   const getWeeklyCompletions = () => {
     const weeklyData = [];
-    const today = new Date();
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
 
-    // Create 4 weekly buckets relative to current date
-    for (let i = 3; i >= 0; i--) {
-      const startOfWeek = new Date(today);
-      startOfWeek.setDate(today.getDate() - (i * 7) - 6); // Start of window
-      const endOfWeek = new Date(today);
-      endOfWeek.setDate(today.getDate() - (i * 7)); // End of window
+    // Determine weeks in this month
+    const startOfMonth = new Date(year, month, 1);
+    const endOfMonth = new Date(year, month + 1, 0);
+
+    // Find the Sunday before or on startOfMonth to align weeks
+    const calendarStart = new Date(startOfMonth);
+    calendarStart.setDate(startOfMonth.getDate() - startOfMonth.getDay());
+
+    let iter = new Date(calendarStart);
+    let weekIndex = 1;
+
+    // Iterate until we pass the end of the month
+    // Cap at 6 weeks max to prevent overflow, though 5 is typical
+    while (iter <= endOfMonth && weekIndex <= 6) {
+      const startOfWeek = new Date(iter);
+      const endOfWeek = new Date(iter);
+      endOfWeek.setDate(endOfWeek.getDate() + 6);
+      const now = new Date();
 
       let completedCount = 0;
-      let totalCount = 0;
+      let totalCount = 0; // Opportunities (days due)
+      let rawRate = 0; // Sum of completion values (1 for done, 0.5 partial)
 
       // Iterate through days in this week window
       for (let d = new Date(startOfWeek); d <= endOfWeek; d.setDate(d.getDate() + 1)) {
         const dateStr = getLocalDateString(d);
-        const status = habit.history[dateStr];
 
-        // Only count as an opportunity if habit was due? 
-        // For simplicity in this view, we count total days or check frequency.
-        // Let's assume daily frequency for standard view or check valid days.
+        // Check if this day falls within our target month?
+        // Usually weekly charts show the full week even if it straddles months.
+        // But for "January Accuracy", maybe only Jan days?
+        // Let's count the full week for continuity.
+
+        // Is habit due on this day?
         const dayIdx = d.getDay();
         let isDue = true;
         if (habit.frequency.type === 'custom' && !habit.frequency.days.includes(dayIdx)) {
           isDue = false;
         }
-        // Logic: If weekly habit, how to attribute?
-        // Revert to simple "completed" count for now as per original likely behavior
 
         if (isDue) {
           totalCount++;
-          if (status === 'completed') completedCount++;
+          const status = habit.history[dateStr];
+          if (status === 'completed') {
+            completedCount++;
+            rawRate += 1;
+          } else if (status === 'partial') {
+            rawRate += 0.5;
+          }
         }
       }
 
+      const rate = totalCount > 0 ? Math.round((rawRate / totalCount) * 100) : 0;
+
+      // Label logic: "Week 1", "Week 2" etc.
+      const label = `Week ${weekIndex}`;
+
+      // Has this week passed?
+      const hasPassed = startOfWeek <= now;
+
       weeklyData.push({
-        label: `Week ${4 - i}`,
+        label,
         count: completedCount,
         total: totalCount,
-        rate: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0,
-        start: getLocalDateString(startOfWeek),
-        end: getLocalDateString(endOfWeek)
+        rate,
+        start: startOfWeek.toLocaleDateString(),
+        end: endOfWeek.toLocaleDateString(),
+        hasPassed
       });
+
+      // Next week
+      iter.setDate(iter.getDate() + 7);
+      weekIndex++;
     }
+
     return weeklyData;
   };
 
