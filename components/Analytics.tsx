@@ -247,12 +247,22 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
 
       // Iterate through days in this week window
       for (let d = new Date(startOfWeek); d <= endOfWeek; d.setDate(d.getDate() + 1)) {
-        const dateStr = getLocalDateString(d);
+        // Robust lookup (Format priority: YYYY-MM-DD, YYYY-MM-D, YYYY-M-DD, YYYY-M-D)
+        const dYear = d.getFullYear();
+        const dMonth = d.getMonth() + 1;
+        const dDay = d.getDate();
 
-        // Check if this day falls within our target month?
-        // Usually weekly charts show the full week even if it straddles months.
-        // But for "January Accuracy", maybe only Jan days?
-        // Let's count the full week for continuity.
+        const paddedMonth = String(dMonth).padStart(2, '0');
+        const paddedDay = String(dDay).padStart(2, '0');
+        const unpaddedMonth = String(dMonth);
+        const unpaddedDay = String(dDay);
+
+        const k1 = `${dYear}-${paddedMonth}-${paddedDay}`;
+        const k2 = `${dYear}-${paddedMonth}-${unpaddedDay}`;
+        const k3 = `${dYear}-${unpaddedMonth}-${paddedDay}`;
+        const k4 = `${dYear}-${unpaddedMonth}-${unpaddedDay}`;
+
+        const status = habit.history[k1] || habit.history[k2] || habit.history[k3] || habit.history[k4];
 
         // Is habit due on this day?
         const dayIdx = d.getDay();
@@ -263,7 +273,6 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
 
         if (isDue) {
           totalCount++;
-          const status = habit.history[dateStr];
           if (status === 'completed') {
             completedCount++;
             rawRate += 1;
