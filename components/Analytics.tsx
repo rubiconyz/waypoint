@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Habit } from '../types';
+import { Habit, HabitStatus } from '../types';
 import { TrendingUp, Calendar, Award, Activity, ChevronDown, Flame, Trophy, AlertTriangle, Clock, TrendingDown, Minus, Flag, Hexagon, Scale, Target } from 'lucide-react';
 import { RadarChart } from './RadarChart';
 
@@ -216,41 +216,51 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
     return habit.history[k4];
   };
 
-  // Calculate Daily Consistency (Average completion by day of week)
-  const getDailyConsistency = () => {
-    // 0=Sun, 1=Mon...
-    const dayStats = Array(7).fill(0).map(() => ({ total: 0, completed: 0 }));
+  // Calculate Weekly Completion Trend (Last 7 Days)
+  const getWeeklyTrend = () => {
+    const trendData = [];
+    const today = new Date();
 
-    // Iterate through all history
-    Object.keys(habit.history).forEach(dateStr => {
-      const status = habit.history[dateStr];
-      const date = new Date(dateStr);
-      // Skip invalid dates
-      if (isNaN(date.getTime())) return;
+    // Go back 7 days (Last week window)
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i); // Today - i
 
-      const dayIndex = date.getDay(); // 0-6
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateKey = `${year}-${month}-${day}`; // Normalize YYYY-MM-DD
 
-      dayStats[dayIndex].total++;
-      if (status === 'completed') {
-        dayStats[dayIndex].completed++;
+      // Check status (robust check)
+      let status: HabitStatus | undefined = undefined;
+      // Try YYYY-MM-DD
+      if (habit.history[dateKey]) status = habit.history[dateKey];
+      // Try YYYY-M-D (legacy)
+      else {
+        const legacyKey = `${year}-${d.getMonth() + 1}-${d.getDate()}`;
+        if (habit.history[legacyKey]) status = habit.history[legacyKey];
       }
-    });
 
-    const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      let count = 0;
+      let percent = 0;
 
-    return dayStats.map((stat, i) => ({
-      label: labels[i],
-      count: stat.completed,
-      total: stat.total,
-      rate: stat.total > 0 ? Math.round((stat.completed / stat.total) * 100) : 0,
-      hasPassed: true
-    }));
+      if (status === 'completed') {
+        count = 1;
+        percent = 100;
+      } else if (status === 'partial') {
+        count = 0.5; // Visual representation
+        percent = 50;
+      }
+
+      // Day Label (Mon, Tue)
+      const label = d.toLocaleDateString('en-US', { weekday: 'short' });
+
+      trendData.push({ label, count, percent, status });
+    }
+    return trendData;
   };
 
-  const weeklyData = getDailyConsistency();
-
-  // CHANGED: No longer scaling based on max count, but on 7 days (Absolute)
-  // const maxWeeklyCount = Math.max(...weeklyData.map(w => w.count), 1); 
+  const trendData = getWeeklyTrend();
 
   const changeMonth = (offset: number) => {
     const newDate = new Date(currentDate);
@@ -414,45 +424,58 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
           </div>
         </div>
 
-        {/* 3. DAILY CONSISTENCY CHART */}
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col h-full min-h-[300px]">
-          <h4 className="font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2 shrink-0">
-            <TrendingUp size={16} className="text-gray-400" />
-            Daily Consistency
+        {/* 3. WEEKLY TREND CHART (Ghost Mode) */}
+        <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl flex flex-col h-full min-h-[300px]">
+          <h4 className="font-bold text-white mb-6 flex items-center gap-2 shrink-0">
+            <TrendingUp size={18} className="text-gray-400" />
+            Weekly Completion Trend
           </h4>
 
-          <div className="flex-1 flex gap-3 px-2 items-end w-full pb-2">
-            {weeklyData.map((day, i) => {
-              // Percentage based on rate (0-100)
-              const heightPercent = Math.max(day.rate, 4); // Min 4% for visibility
+          <div className="flex-1 flex flex-col justify-between w-full pb-2 gap-3">
+            {trendData.map((day, i) => {
+              // Color logic based on percent
+              let barColor = 'bg-orange-500';
+              if (day.percent >= 80) barColor = 'bg-emerald-500';
+              else if (day.percent >= 50) barColor = 'bg-blue-500';
 
               return (
-                <div key={i} className="flex-1 flex flex-col items-center group h-full justify-end">
-                  <div className="w-full relative flex-1 bg-gray-100 dark:bg-gray-700/30 rounded-md overflow-visible flex items-end">
+                <div key={i} className="flex items-center gap-4 w-full group">
+                  {/* Day Label */}
+                  <span className="text-xs font-medium text-gray-400 w-8 shrink-0">{day.label}</span>
 
-                    {/* Bar */}
+                  {/* Bar Container */}
+                  <div className="flex-1 h-8 bg-gray-800/50 rounded-full relative overflow-hidden flex items-center px-1">
+                    {/* Active Bar */}
                     <div
-                      className={`w-full transition-all duration-1000 ease-out rounded-md ${day.rate >= 80 ? 'bg-indigo-500' : 'bg-indigo-400 opacity-80'}`}
-                      style={{ height: `${heightPercent}%` }}
+                      className={`h-full rounded-full transition-all duration-1000 ease-out flex items-center justify-end pr-3 ${barColor}`}
+                      style={{ width: `${Math.max(day.percent, 5)}%` }} // Min width for visibility
                     >
-                      {/* Tooltip */}
-                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none mb-1">
-                        {day.rate}% ({day.count}/{day.total})
-                      </div>
+                      {/* Count Label (Inside Bar) */}
+                      {day.percent > 0 && (
+                        <span className="text-xs font-bold text-white">{day.count}</span>
+                      )}
                     </div>
                   </div>
-                  <span className="text-[10px] mt-3 font-medium text-gray-400 shrink-0">{day.label}</span>
+
+                  {/* Percentage Label */}
+                  <span className="text-xs font-medium text-gray-500 w-8 text-right shrink-0">{day.percent}%</span>
                 </div>
               );
             })}
           </div>
 
-          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 shrink-0">
-            <div className="flex justify-between items-center text-xs text-gray-500">
-              <span>Performance by Day</span>
-              <div className="font-bold text-gray-900 dark:text-white">
-                {Math.round(weeklyData.reduce((acc, curr) => acc + curr.rate, 0) / 7)}% avg
-              </div>
+          <div className="mt-6 pt-4 border-t border-gray-800 shrink-0 flex justify-center gap-6">
+            <div className="flex items-center gap-2 text-[10px] text-gray-400">
+              <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+              <span>80%+</span>
+            </div>
+            <div className="flex items-center gap-2 text-[10px] text-gray-400">
+              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+              <span>50-79%</span>
+            </div>
+            <div className="flex items-center gap-2 text-[10px] text-gray-400">
+              <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+              <span>&lt;50%</span>
             </div>
           </div>
         </div>

@@ -1390,8 +1390,7 @@ const App: React.FC = () => {
                 </>
               ) : (
                 <>
-                  {/* HIDDEN FOR DEPLOYMENT: Languages Feature */}
-                  {/* <button onClick={() => setActiveTab('immersion')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'immersion' ? 'bg-white dark:bg-gray-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                  <button onClick={() => setActiveTab('immersion')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'immersion' ? 'bg-white dark:bg-gray-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
                     <Languages size={16} />
                     <span className="hidden sm:inline">Immersion</span>
                   </button>
@@ -1402,7 +1401,7 @@ const App: React.FC = () => {
                   <button onClick={() => setActiveTab('immersion-analytics')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'immersion-analytics' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
                     <BarChart2 size={16} />
                     <span className="hidden sm:inline">Analytics</span>
-                  </button> */}
+                  </button>
                 </>
               )}
             </nav>
