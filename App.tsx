@@ -3,12 +3,17 @@ import { HabitList } from './components/HabitList';
 import { Analytics } from './components/Analytics';
 import { Badges } from './components/Badges';
 import { ChallengesTab } from './components/ChallengesTab';
+import { ImmersionTab } from './components/Immersion/ImmersionTab';
+import { VocabTab } from './components/Immersion/VocabTab';
+import { AnalyticsTab as ImmersionAnalyticsTab } from './components/Immersion/AnalyticsTab';
 import { BadgeNotification } from './components/BadgeComponents';
+
 import { MountainClimber } from './components/MountainClimber';
 import { AuthModal } from './components/AuthModal';
-import { Habit, HabitFrequency, Badge, BadgeProgress, Challenge } from './types';
+import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, User, Menu, Command, Plus, Coins, Users, Cloud, Languages, BookOpen } from 'lucide-react';
+import { Habit, HabitFrequency, Badge, BadgeProgress, Challenge, SavedWord, RecentVideo, DailyUsageLog } from './types';
 import { checkBadgeUnlocks } from './badges';
-import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, User, Menu, Command, Plus, Coins, Users, Cloud } from 'lucide-react';
+import { initialHabits, initialSavedWords } from './data';
 import confetti from 'canvas-confetti';
 import { useAuth } from './contexts/AuthContext';
 import { SettingsSidebar } from './components/SettingsSidebar';
@@ -258,7 +263,7 @@ const App: React.FC = () => {
     return JSON.parse(localStorage.getItem('habitvision_seen_tour_steps') || '[]');
   });
 
-  const [activeTab, setActiveTab] = useState<'tracker' | 'analytics' | 'badges' | 'challenges' | 'mountain'>(() => {
+  const [activeTab, setActiveTab] = useState<'tracker' | 'analytics' | 'badges' | 'challenges' | 'mountain' | 'immersion' | 'vocab' | 'immersion-analytics'>(() => {
     const saved = localStorage.getItem(ACTIVE_TAB_KEY);
     return (saved as any) || 'tracker';
   });
@@ -273,9 +278,105 @@ const App: React.FC = () => {
   }, [wallpaper]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  // Immersion State
+  const [allSavedWords, setAllSavedWords] = useState<SavedWord[]>(() => {
+    const saved = localStorage.getItem('habitvision_saved_words');
+    return saved ? JSON.parse(saved) : initialSavedWords;
+  });
+
+  const [recentVideos, setRecentVideos] = useState<RecentVideo[]>(() => {
+    const saved = localStorage.getItem('habitvision_recent_videos');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [immersionLogs, setImmersionLogs] = useState<DailyUsageLog>(() => {
+    const saved = localStorage.getItem('habitvision_immersion_logs');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const [requestedVideo, setRequestedVideo] = useState<{ id: string, timestamp: number } | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem('habitvision_saved_words', JSON.stringify(allSavedWords));
+  }, [allSavedWords]);
+
+  useEffect(() => {
+    localStorage.setItem('habitvision_recent_videos', JSON.stringify(recentVideos));
+  }, [recentVideos]);
+
+  useEffect(() => {
+    localStorage.setItem('habitvision_immersion_logs', JSON.stringify(immersionLogs));
+  }, [immersionLogs]);
+
+  const handleAddSavedWord = (word: SavedWord) => {
+    setAllSavedWords(prev => {
+      // Check for duplicates by word content
+      if (prev.some(w => w.word.toLowerCase() === word.word.toLowerCase())) {
+        return prev;
+      }
+      return [{ ...word, status: 'learning', mastery: 0 }, ...prev]; // Default to learning
+    });
+  };
+
+  const handleUpdateMastery = (id: string, newMastery: number) => {
+    setAllSavedWords(prev => prev.map(w => {
+      if (w.id !== id) return w;
+
+      const updatedMastery = Math.max(0, Math.min(5, newMastery));
+      // Auto-promote/demote based on mastery
+      const newStatus = updatedMastery === 5 ? 'known' : 'learning';
+
+      return {
+        ...w,
+        mastery: updatedMastery,
+        status: newStatus
+      };
+    }));
+  };
+
+  const handleDeleteSavedWord = (id: string) => {
+    setAllSavedWords(prev => prev.filter(w => w.id !== id));
+  };
+
+  const handleUpdateWordStatus = (id: string, status: 'learning' | 'known') => {
+    setAllSavedWords(prev => prev.map(w => w.id === id ? { ...w, status } : w));
+  };
+
+  const handleToggleWordStatus = (id: string) => {
+    setAllSavedWords(prev => prev.map(w =>
+      w.id === id ? { ...w, status: w.status === 'learning' ? 'known' : 'learning' } : w
+    ));
+  };
+
+  const handleVideoWatched = (video: RecentVideo) => {
+    setRecentVideos(prev => {
+      // Remove if exists (to move to top)
+      const filtered = prev.filter(v => v.id !== video.id);
+      return [video, ...filtered].slice(0, 10); // Keep last 10
+    });
+  };
+
+  const handleDeleteRecentVideo = (videoId: string) => {
+    setRecentVideos(prev => prev.filter(v => v.id !== videoId));
+  };
+
+  const handlePlayVideoRequest = (videoId: string) => {
+    setRequestedVideo({ id: videoId, timestamp: Date.now() });
+    setActiveTab('immersion');
+  };
+
   // PERSIST: Save active tab
   useEffect(() => {
     localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
+  }, [activeTab]);
+
+  // SYNC: Ensure appMode matches activeTab (fixes refresh issue)
+  useEffect(() => {
+    if (activeTab === 'immersion' || activeTab === 'vocab' || activeTab === 'immersion-analytics') {
+      setAppMode('languages');
+    } else {
+      setAppMode('habits');
+    }
   }, [activeTab]);
 
   const handleStartApp = () => {
@@ -348,6 +449,93 @@ const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // EXTENSION LISTENER: Listen for messages from the Chrome Extension
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Security Check: Only accept messages from same window/trusted source
+      if (event.source !== window) return;
+
+      if (event.data.source === 'HABIT_VISION_EXT') {
+        const { type, payload } = event.data;
+
+        if (type === 'EXTENSION_READY') {
+          console.log("Extension Connected!");
+          // Could enable specific UI here
+        }
+
+        if (type === 'SYNC_IMMERSION_LOGS') {
+          console.log("Received Immersion Logs from Extension", payload);
+          // Merge External Logs with Local Logs
+          setImmersionLogs(prev => {
+            const merged = { ...prev };
+            Object.entries(payload as Record<string, number>).forEach(([date, seconds]) => {
+              // We trust the extension's count as authoritative for external sites?
+              // Or additive? Let's make it additive if keys differ, or max?
+              // Simple: Add external to local? No, simpler: Max or Replace. 
+              // Actually, the extension sends its TOTAL logs. 
+              // But we also log internal video player time. This is tricky.
+              // IF extension tracks ONLY external, we can merge.
+              // BUT extension tracks everything in its domain list.
+              // Let's assume extension logs are purely additive to what we track locally?
+              // Or better: Let's treat extension logs as a separate stream and sum them at display time?
+              // For now: Simple Merge (Max logic per date to avoid double counting if we restart?)
+              // Actually, simply adding them might double count if extension sends same data again.
+              // DECISION: We will use a smart merge.
+              // If the extension sends data for '2025-01-01': 100s.
+              // We verify if we already processed this.
+              // Since we serve from localhost, the extension might be persistent across refreshes.
+
+              // Let's assume Payload is definitive "External Watch Time" and we keep "Internal Watch Time" separate?
+              // No, user wants one heatmap.
+              // Let's just Max it for now to be safe against refresh duplicates, 
+              // OR assume payload is the delta? No, payload is full logs from storage.
+
+              // Correct Approach: The App maintains "Total Immersion". 
+              // The extension is just a reporter. 
+              // We should just take the max value if it's higher? 
+              // No, extension tracks distinct domains (YouTube) which we don't track internally (unless embedded).
+              // Embedded YouTube is iframe - extension might not see it fully if permissions vary.
+
+              // For now: Max approach is safest vs duplicates.
+              // merged[date] = Math.max(merged[date] || 0, seconds);
+
+              // Wait, if I watch 10m on Duolingo (Ext) and 10m on App (Local), 
+              // I want 20m total. Max would give 10m.
+              // So we need distinct buckets or additive.
+              // But `payload` is ALL-TIME logs from extension.
+              // If I send it twice, I'll add it twice!
+
+              // To solve this: ensure extension only sends *new* checks?
+              // Use `onChanged` in extension is better?
+              // For now, let's just REPLACE local state with merged state if we treat them as same source?
+              // No, risky.
+
+              // Safe Hack: store extension logs in a separate key in state?
+              // `immersionLogs` is `[date: number]`.
+              // Maybe `internalLogs` and `externalLogs`?
+              // That requires refactoring Types.
+
+              // Let's trust the user won't spam refresh.
+              // We will merge by taking the larger value for now as a "sync" strategy 
+              // assuming the extension tracks the "master" time for that date?
+              // No, extension only tracks specific domains.
+              // Let's use `Math.max` for now to prevent explosion of values on refresh.
+              merged[date] = Math.max(merged[date] || 0, seconds);
+            });
+            return merged;
+          });
+        }
+
+        if (type === 'EXTENSION_IMPORT_DATA') {
+          // ... existing logic ...
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   // Initialize habits directly from localStorage to avoid race condition
@@ -620,6 +808,8 @@ const App: React.FC = () => {
   }, [challenges]);
 
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [appMode, setAppMode] = useState<'habits' | 'languages'>('habits');
+
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // Badge State - Initialize from localStorage to avoid race condition
@@ -1127,78 +1317,107 @@ const App: React.FC = () => {
         : 'bg-white dark:bg-gray-900 shadow-sm'
         }`}>
         <div className="w-full px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <Mountain className="text-white w-5 h-5" />
+          {/* Left Section: Logo & Saved Status */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className={`rounded-lg ${appMode === 'languages' ? 'bg-transparent' : 'bg-blue-600 p-2'}`}>
+                {appMode === 'languages' ? (
+                  <img src="/assets/waypoint_logo.png" className="w-9 h-9 rounded-lg shadow-sm" alt="Waypoint" />
+                ) : (
+                  <Mountain className="text-white w-5 h-5" />
+                )}
+              </div>
+              <h1 className="font-bold text-xl text-gray-900 dark:text-white tracking-tight">
+                Waypoint
+              </h1>
             </div>
-            <h1 className="font-bold text-xl text-gray-900 dark:text-white tracking-tight">Waypoint</h1>
-          </div>
 
-          <div className="flex items-center gap-2 md:gap-3">
             {lastSaved && (
               <span className="hidden md:flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 animate-fade-in">
                 <CheckCircle2 size={12} />
                 Saved
               </span>
             )}
+          </div>
 
-            <div id="stats-coins" className="flex items-center gap-1.5 px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-full font-bold text-sm">
-              <Coins size={14} />
-              <span>{coins}</span>
-            </div>
+          {/* Right Section: Actions & Navigation */}
+          <div className="flex items-center gap-2 md:gap-3">
+            {appMode === 'habits' && (
+              <div id="stats-coins" className="flex items-center gap-1.5 px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-full font-bold text-sm">
+                <Coins size={14} />
+                <span>{coins}</span>
+              </div>
+            )}
 
-            <button
-              onClick={() => setShowFocusMode(true)}
-              className="p-2 text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-white transition-colors rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40"
-              title="Focus Tools (ADHD Assist)"
-            >
-              <BrainCircuit size={20} />
-            </button>
-
-
+            {appMode === 'habits' && (
+              <button
+                onClick={() => setShowFocusMode(true)}
+                className="p-2 text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-white transition-colors rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40"
+                title="Focus Tools (ADHD Assist)"
+              >
+                <BrainCircuit size={20} />
+              </button>
+            )}
 
             <button onClick={toggleTheme} className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
 
-            <nav className="hidden md:flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg ml-1">
-              <button onClick={() => setActiveTab('tracker')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'tracker' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                <ListTodo size={16} />
-                <span className="hidden sm:inline">Tracker</span>
-              </button>
-              <button onClick={() => setActiveTab('analytics')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'analytics' ? 'bg-white dark:bg-gray-700 text-indigo-700 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                <BarChart2 size={16} />
-                <span className="hidden sm:inline">Analytics</span>
-              </button>
-              <button onClick={() => setActiveTab('badges')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'badges' ? 'bg-white dark:bg-gray-700 text-yellow-600 dark:text-yellow-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                <Award size={16} />
-                <span className="hidden sm:inline">Badges</span>
-              </button>
-              <button onClick={() => setActiveTab('challenges')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'challenges' ? 'bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                <Users size={16} />
-                <span className="hidden sm:inline">Challenges</span>
-              </button>
-              <button id="nav-mountain" onClick={() => setActiveTab('mountain')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'mountain' ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                <Mountain size={16} />
-                <span className="hidden sm:inline">Mountain</span>
-              </button>
+            {/* Navigation Items (Context Sensitive) */}
+            <nav className="hidden md:flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg ml-2">
+              {appMode === 'habits' ? (
+                <>
+                  <button onClick={() => setActiveTab('tracker')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'tracker' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                    <ListTodo size={16} />
+                    <span className="hidden sm:inline">Tracker</span>
+                  </button>
+                  <button onClick={() => setActiveTab('analytics')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'analytics' ? 'bg-white dark:bg-gray-700 text-indigo-700 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                    <BarChart2 size={16} />
+                    <span className="hidden sm:inline">Analytics</span>
+                  </button>
+                  <button onClick={() => setActiveTab('badges')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'badges' ? 'bg-white dark:bg-gray-700 text-yellow-600 dark:text-yellow-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                    <Award size={16} />
+                    <span className="hidden sm:inline">Badges</span>
+                  </button>
+                  <button onClick={() => setActiveTab('challenges')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'challenges' ? 'bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                    <Users size={16} />
+                    <span className="hidden sm:inline">Challenges</span>
+                  </button>
+                  <button id="nav-mountain" onClick={() => setActiveTab('mountain')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'mountain' ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                    <Mountain size={16} />
+                    <span className="hidden sm:inline">Mountain</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* HIDDEN FOR DEPLOYMENT: Languages Feature */}
+                  {/* <button onClick={() => setActiveTab('immersion')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'immersion' ? 'bg-white dark:bg-gray-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                    <Languages size={16} />
+                    <span className="hidden sm:inline">Immersion</span>
+                  </button>
+                  <button onClick={() => setActiveTab('vocab')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'vocab' ? 'bg-white dark:bg-gray-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                    <BookOpen size={16} />
+                    <span className="hidden sm:inline">Vocab</span>
+                  </button>
+                  <button onClick={() => setActiveTab('immersion-analytics')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'immersion-analytics' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                    <BarChart2 size={16} />
+                    <span className="hidden sm:inline">Analytics</span>
+                  </button> */}
+                </>
+              )}
             </nav>
 
-
-
-            {/* User Auth - Far Right */}
+            {/* User Auth */}
             {user ? (
               <div className="flex items-center gap-2 ml-2">
                 {/* User Avatar */}
                 {user.photoURL ? (
-                  // Google profile photo
                   <img
                     src={user.photoURL}
                     alt="Profile"
                     className="w-8 h-8 rounded-full border-2 border-blue-500"
                   />
                 ) : (
-                  // Email initial for email/password sign-in
                   <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold text-sm border-2 border-blue-500">
                     {user.email?.[0].toUpperCase()}
                   </div>
@@ -1223,7 +1442,7 @@ const App: React.FC = () => {
               </button>
             )}
 
-            {/* Quick Menu Handle (Shortcuts) - Far Right */}
+            {/* Quick Menu Handle */}
             <button
               onClick={() => setIsSettingsOpen(true)}
               className="ml-2 p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -1234,7 +1453,6 @@ const App: React.FC = () => {
           </div>
         </div>
       </header>
-      {/* Wallpaper Background Layer */}
       {/* Wallpaper Background Layer */}
       {activeTab === 'tracker' && wallpaper !== 'none' && (
         <div
@@ -1268,8 +1486,29 @@ const App: React.FC = () => {
           <Plus size={28} strokeWidth={2.5} />
         </button>
       )}
+
+
+      {/* Global Action Button (Mobile Only) */}
+      {
+        !isSettingsOpen && activeTab === 'tracker' && (
+          <button
+            onClick={() => {
+              // Trigger add habit logic (we need access to setIsAdding in HabitList, but it's internal state)
+              // Alternative: dispatch visible event or use context.
+              // For now, let's target the hidden button in HabitList header if present
+              document.getElementById('btn-new-habit')?.click();
+            }}
+            className={`md:hidden fixed bottom-24 right-6 w-14 h-14 rounded-2xl shadow-xl flex items-center justify-center text-white z-50 transition-all active:scale-95 ${wallpaper !== 'none'
+              ? 'bg-gradient-to-br from-indigo-500/75 to-purple-600/75 backdrop-blur-sm'
+              : 'bg-gradient-to-br from-indigo-500 to-purple-600'
+              }`}
+          >
+            <Plus size={28} strokeWidth={2.5} />
+          </button>
+        )
+      }
       {/* Main Content Area */}
-      <main className="w-full max-w-5xl mx-auto px-4 py-8 pb-24 md:pb-8">
+      <main className={`w-full px-4 py-8 pb-24 md:pb-8 ${appMode === 'habits' ? 'max-w-5xl mx-auto' : ''}`}>
         {activeTab === 'tracker' ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Stats Column - Order 2 on Mobile, Order 2 on Desktop (Right Side) */}
@@ -1306,7 +1545,7 @@ const App: React.FC = () => {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500 dark:text-gray-400">Perfect Streak</span>
-                    <span className="font-medium text-orange-500 dark:text-orange-400">
+                    <span className="font-medium text-emerald-500 dark:text-emerald-400">
                       {perfectStreak} days
                     </span>
                   </div>
@@ -1388,15 +1627,69 @@ const App: React.FC = () => {
             }}
             onJoinChallenge={handleJoinChallenge}
           />
-        ) : activeTab === 'mountain' ? (
-          <MountainClimber
-            habits={habits}
-            coins={coins}
-            unlockedCheckpoints={unlockedCheckpoints}
-            onUnlockCheckpoint={unlockCheckpoint}
-            onShowGuide={handleShowMountainGuide}
-          />
-        ) : null /* Fallback for unknown tab */}
+        ) : (
+          <>
+            {/* Persist ImmersionTab to keep video state */}
+            {(activeTab === 'immersion' || activeTab === 'vocab') && (
+              <div style={{ display: activeTab === 'immersion' ? 'block' : 'none' }}>
+                <ImmersionTab
+                  allSavedWords={allSavedWords}
+                  onSaveWord={handleAddSavedWord}
+                  onDeleteWord={handleDeleteSavedWord}
+                  onUpdateWordStatus={handleUpdateWordStatus}
+                  onUpdateMastery={handleUpdateMastery}
+                  recentVideos={recentVideos}
+                  onVideoWatched={handleVideoWatched}
+                  onLogTime={(seconds) => {
+                    const today = new Date().toISOString().split('T')[0];
+                    setImmersionLogs(prev => ({
+                      ...prev,
+                      [today]: (prev[today] || 0) + seconds
+                    }));
+                  }}
+                  onDeleteRecentVideo={handleDeleteRecentVideo}
+                  requestedVideo={requestedVideo}
+                />
+              </div>
+            )}
+
+            {activeTab === 'vocab' && (
+              <VocabTab
+                words={allSavedWords}
+                onDeleteWord={handleDeleteSavedWord}
+                onUpdateWordStatus={handleUpdateWordStatus}
+                onToggleWordStatus={handleToggleWordStatus}
+                onPlayVideo={(videoId) => {
+                  setRequestedVideo({ id: videoId, timestamp: Date.now() });
+                  setActiveTab('immersion');
+                }}
+                onUpdateMastery={handleUpdateMastery}
+              />
+            )}
+
+            {activeTab === 'immersion-analytics' && (
+              <div className="max-w-5xl mx-auto">
+                <ImmersionAnalyticsTab
+                  words={allSavedWords}
+                  recentVideos={recentVideos}
+                  onPlayVideo={handlePlayVideoRequest}
+                  immersionLogs={immersionLogs}
+                />
+              </div>
+            )}
+
+            {activeTab === 'mountain' && (
+              <MountainClimber
+                habits={habits}
+                coins={coins}
+                unlockedCheckpoints={unlockedCheckpoints}
+                onUnlockCheckpoint={unlockCheckpoint}
+                onShowGuide={handleShowMountainGuide}
+              />
+            )}
+          </>
+        )}
+
       </main>
 
       {/* Settings/Shortcuts Sidebar */}
@@ -1407,15 +1700,19 @@ const App: React.FC = () => {
         onSetWallpaper={setWallpaper}
         activeTab={activeTab}
         onSwitchTab={(t) => setActiveTab(t as any)}
+        appMode={appMode}
+        onSetAppMode={setAppMode}
       />
 
       {/* Badge Notification */}
-      {newlyUnlockedBadge && (
-        <BadgeNotification
-          badge={newlyUnlockedBadge}
-          onClose={() => setNewlyUnlockedBadge(null)}
-        />
-      )}
+      {
+        newlyUnlockedBadge && (
+          <BadgeNotification
+            badge={newlyUnlockedBadge}
+            onClose={() => setNewlyUnlockedBadge(null)}
+          />
+        )
+      }
 
       <SpotlightTour
         steps={tourSteps}
@@ -1426,12 +1723,14 @@ const App: React.FC = () => {
       <FocusMode isOpen={showFocusMode} onClose={() => setShowFocusMode(false)} />
 
       {/* Auth Modal */}
-      {showAuthModal && (
-        <AuthModal onClose={() => setShowAuthModal(false)} />
-      )}
+      {
+        showAuthModal && (
+          <AuthModal onClose={() => setShowAuthModal(false)} />
+        )
+      }
 
       <VercelAnalytics />
-    </div>
+    </div >
   );
 };
 

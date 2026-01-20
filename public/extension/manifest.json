@@ -1,0 +1,56 @@
+{
+    "manifest_version": 3,
+    "name": "Waypoint Importer",
+    "version": "1.2.5",
+    "description": "Import YouTube transcripts to Waypoint (HabitVision).",
+    "permissions": [
+        "scripting",
+        "activeTab",
+        "storage"
+    ],
+    "host_permissions": [
+        "*://*.youtube.com/*",
+        "*://*.duolingo.com/*",
+        "*://*.dw.com/*",
+        "*://*.leo.org/*",
+        "http://localhost:3000/*"
+    ],
+    "icons": {
+        "16": "logo16.png",
+        "48": "logo48.png",
+        "128": "logo128.png"
+    },
+    "action": {
+        "default_popup": "popup.html",
+        "default_title": "Import to Waypoint",
+        "default_icon": {
+            "16": "logo16.png",
+            "48": "logo48.png",
+            "128": "logo128.png"
+        }
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "http://localhost:3000/*",
+                "http://localhost:3001/*"
+            ],
+            "js": [
+                "content.js"
+            ]
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "content.js"
+            ],
+            "matches": [
+                "http://localhost:3000/*"
+            ]
+        }
+    ]
+}

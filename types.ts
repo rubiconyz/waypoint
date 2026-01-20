@@ -122,6 +122,39 @@ export interface Challenge {
   duration: number;                // Days
   inviteCode: string;              // Unique shareable code
   participants: ChallengeParticipant[];
-  createdAt: string;
   isActive: boolean;               // Challenge still running
+  createdAt: string;
+}
+
+export interface SavedWord {
+  id: string;
+  word: string;
+  translation: string;
+  context: string;
+  videoId: string;
+  timestamp: number;
+  addedAt: string; // ISO date
+  status: 'learning' | 'known';
+  sourceTitle?: string;
+  channelTitle?: string;
+  mastery?: number; // 0-5
+}
+
+export interface TranscriptSegment {
+  text: string;
+  start: number;
+  duration: number;
+}
+
+export interface RecentVideo {
+  id: string; // YouTube ID
+  title: string;
+  thumbnail: string;
+  lastWatched: number; // Date.now()
+  progress?: number; // timestamp in seconds
+  segments?: TranscriptSegment[];
+}
+
+export interface DailyUsageLog {
+  [date: string]: number; // date "YYYY-MM-DD" -> seconds watched
 }
