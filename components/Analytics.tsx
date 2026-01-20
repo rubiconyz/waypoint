@@ -441,9 +441,27 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
               // Calculate relative height (max 100%)
               const heightPercent = week.rate;
 
-              // Define improvement (simple check against previous week)
+              // Define improvement
               const prevWeek = weeklyData[i - 1];
-              const isImproved = prevWeek ? week.rate >= prevWeek.rate : true;
+              let diffPercent = 0;
+              let TrendIcon = Minus;
+              let trendColor = 'text-gray-400';
+
+              if (i > 0) {
+                const diff = week.rate - prevWeek.rate;
+                // Percent difference logic or just absolute difference? 
+                // Image shows "14%", likely difference in rate or count.
+                // Let's use simple difference for rate (e.g. 50% -> 64% = +14%)
+                diffPercent = diff;
+
+                if (diff > 0) {
+                  TrendIcon = TrendingUp;
+                  trendColor = 'text-green-500';
+                } else if (diff < 0) {
+                  TrendIcon = TrendingDown;
+                  trendColor = 'text-orange-500';
+                }
+              }
 
               return (
                 <div key={i} className="flex-1 flex flex-col items-center group h-full justify-end">
@@ -451,25 +469,19 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
 
                     {/* Bar */}
                     <div
-                      className={`w-full transition-all duration-1000 ease-out rounded-md ${week.rate >= 80 ? 'bg-indigo-500' : 'bg-indigo-400 opacity-80'}`}
-                      style={{ height: `${Math.max(heightPercent, 4)}%` }} // Min height for visibility
+                      className={`w-full transition-all duration-1000 ease-out rounded-md relative ${week.rate > 0 ? 'bg-indigo-500' : 'bg-transparent'}`}
+                      style={{ height: `${Math.max(heightPercent, 0)}%` }}
                     >
-                      {/* Tooltip */}
-                      <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] py-2 px-3 rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none mb-1">
-                        <div className="font-bold mb-0.5">{week.label}</div>
-                        <div>{week.rate}% ({week.count}/{week.total})</div>
-                        <div className="text-gray-400 text-[9px] mt-0.5">{week.start} - {week.end.split('-').slice(1).join('-')}</div>
-                      </div>
+                      {/* Floating Trend Label (Above Bar) */}
+                      {i > 0 && Math.abs(diffPercent) > 0 && (
+                        <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-1 flex items-center gap-0.5 whitespace-nowrap ${trendColor} z-10 font-bold`}>
+                          <TrendIcon size={12} strokeWidth={3} />
+                          <span className="text-[10px]">{Math.abs(diffPercent)}%</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <span className="text-[10px] mt-3 font-medium text-gray-400 shrink-0">{week.label}</span>
-
-                  {/* Trend Indicator */}
-                  {i > 0 && (
-                    <div className={`text-[9px] mt-1 font-bold ${week.rate >= weeklyData[i - 1].rate ? 'text-green-500' : 'text-orange-500'}`}>
-                      {week.rate >= weeklyData[i - 1].rate ? '↑' : '↓'}
-                    </div>
-                  )}
                 </div>
               );
             })}
