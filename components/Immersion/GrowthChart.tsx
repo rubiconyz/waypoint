@@ -1,58 +1,32 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { SavedWord } from '../../types';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, ChevronLeft, ChevronRight, TrendingDown, Minus } from 'lucide-react';
 
 interface GrowthChartProps {
     words: SavedWord[];
 }
 
 export const GrowthChart: React.FC<GrowthChartProps> = ({ words }) => {
+    const [currentDate, setCurrentDate] = useState(new Date());
 
     const { weeklyData, currentMonthLabel, totalCount } = useMemo(() => {
-        const now = new Date();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
+        const currentMonth = currentDate.getMonth();
+        const currentYear = currentDate.getFullYear();
 
         // 1. Determine weeks in current month
-        // Start from 1st of month
         const startOfMonth = new Date(currentYear, currentMonth, 1);
         const endOfMonth = new Date(currentYear, currentMonth + 1, 0);
 
-        const weeks = [];
-        let currentStart = new Date(startOfMonth);
-
-        // Align to Sunday-Saturday weeks? Or just 7-day chunks?
-        // Habit tracker usually uses calendar weeks (Sun-Sat or Mon-Sun).
-        // Let's assume standard Sun-Sat distinct weeks for the month view.
-
-        // Adjust start to be the first day of the first week that contains the 1st?
-        // Or just partition the month into week 1, 2, 3, 4, 5?
-        // Screenshot shows "Week 1", "Week 2".
-        // Let's simple slice the month into 7-day chunks starting from the 1st?
-        // No, calendar alignment is better.
-
-        // Let's iterate by weeks.
-        const weekData = [];
-        // Helper to get week number of the month (0-based)
-
-        // We will bin words into "Week 1" (Days 1-7), "Week 2" (8-14) etc for simplicity?
-        // OR better: Real calendar weeks.
-
-        // Let's go with "Week 1" = First 7 days of month, etc. This is consistent and easy.
-        // Actually, "Weekly Completions" usually implies calendar weeks.
-        // Let's stick to strict calendar weeks?
-        // If I look at the screenshot, "Week 1" ... "Week 5".
-        // A month can span 5 or 6 weeks.
-
-        // Let's gather all weeks that overlap this month.
-        // Find the Sunday before or on startOfMonth
+        // Align to Calendar Weeks (Sun-Sat)
         const calendarStart = new Date(startOfMonth);
         calendarStart.setDate(startOfMonth.getDate() - startOfMonth.getDay()); // Go back to Sunday
 
         let iter = new Date(calendarStart);
         let weekIndex = 1;
+        const weekData = [];
+        const now = new Date(); // To check "hasPassed"
 
-        while (iter <= endOfMonth && weekIndex <= 5) { // Limit to 5 weeks max to fit UI
+        while (iter <= endOfMonth && weekIndex <= 5) { // Limit to 5 rows for UI space
             const weekStart = new Date(iter);
             const weekEnd = new Date(iter);
             weekEnd.setDate(weekEnd.getDate() + 6);
@@ -63,7 +37,7 @@ export const GrowthChart: React.FC<GrowthChartProps> = ({ words }) => {
                 return d >= weekStart && d <= weekEnd;
             }).length;
 
-            // Check if past
+            // Check if past (week start is before right now)
             const hasPassed = weekStart <= now;
 
             weekData.push({ label: `Week ${weekIndex}`, count, hasPassed });
@@ -81,82 +55,91 @@ export const GrowthChart: React.FC<GrowthChartProps> = ({ words }) => {
         const monthLabel = startOfMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
 
         return { weeklyData: weekData, currentMonthLabel: monthLabel, totalCount: total };
-    }, [words]);
+    }, [words, currentDate]);
 
-    // Find max for scaling (min 10 to avoid huge bars for 1 word)
-    const maxCount = Math.max(...weeklyData.map(w => w.count), 5); // Default scale of 5 if empty
+    const handlePrevMonth = () => {
+        setCurrentDate(prev => {
+            const newDate = new Date(prev);
+            newDate.setMonth(prev.getMonth() - 1);
+            return newDate;
+        });
+    };
+
+    const handleNextMonth = () => {
+        setCurrentDate(prev => {
+            const newDate = new Date(prev);
+            newDate.setMonth(prev.getMonth() + 1);
+            return newDate;
+        });
+    };
+
+
+    // Find max for scaling (min 5)
+    const maxCount = Math.max(...weeklyData.map(w => w.count), 5);
 
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col h-full min-h-[300px]">
-            <h4 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2 shrink-0">
-                <TrendingUp size={20} className="text-gray-400" />
-                Weekly Consistency
-            </h4>
+            <div className="flex items-center justify-between mb-6">
+                <h4 className="font-bold text-gray-900 dark:text-white flex items-center gap-2 shrink-0">
+                    <TrendingUp size={20} className="text-gray-400" />
+                    Weekly Consistency
+                </h4>
+                <div className="flex items-center gap-2">
+                    <button onClick={handlePrevMonth} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-400 hover:text-gray-600">
+                        <ChevronLeft size={16} />
+                    </button>
+                    <span className="text-xs font-medium text-gray-500 min-w-[80px] text-center">{currentMonthLabel}</span>
+                    <button
+                        onClick={handleNextMonth}
+                        disabled={currentDate.getMonth() === new Date().getMonth() && currentDate.getFullYear() === new Date().getFullYear()}
+                        className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                        <ChevronRight size={16} />
+                    </button>
+                </div>
+            </div>
 
-            <div className="flex-1 flex gap-3 px-2 items-end w-full pb-4">
+            <div className="flex-1 flex gap-3 px-2 items-end w-full pb-2">
                 {weeklyData.map((week, i) => {
                     // Percentage height relative to max in this period
-                    const heightPercent = Math.max(4, (week.count / maxCount) * 100); // Min 4% for visibility
+                    const heightPercent = maxCount > 0 ? (week.count / maxCount) * 100 : 0;
 
                     // Calculate improvement vs previous week
-                    let ChangeIcon = null;
-                    let changeLabel = null;
-                    let changeColor = 'text-gray-400';
-
-                    if (i > 0 && week.hasPassed) {
-                        const prevWeek = weeklyData[i - 1];
-                        const diff = week.count - prevWeek.count;
-                        // Avoid division by zero
-                        const diffPercent = prevWeek.count > 0 ? Math.round((Math.abs(diff) / prevWeek.count) * 100) : (week.count > 0 ? 100 : 0);
-
-                        if (diff > 0) {
-                            ChangeIcon = TrendingUp;
-                            changeLabel = `${diffPercent}%`;
-                            changeColor = 'text-green-500';
-                        } else if (diff < 0) {
-                            ChangeIcon = TrendingDown;
-                            changeLabel = `${diffPercent}%`;
-                            changeColor = 'text-red-500 text-opacity-80';
-                        } else {
-                            ChangeIcon = Minus;
-                            changeLabel = '0%';
-                            changeColor = 'text-gray-400 text-opacity-60';
-                        }
-                    }
+                    const prevWeek = weeklyData[i - 1];
+                    const isImproved = prevWeek ? week.count >= prevWeek.count : true;
 
                     return (
                         <div key={i} className="flex-1 flex flex-col items-center group h-full justify-end">
                             {/* Bar Container */}
-                            <div className="w-full relative flex-1 bg-gray-50 dark:bg-gray-700/30 rounded-lg overflow-hidden flex items-end">
+                            <div className="w-full relative flex-1 bg-gray-100 dark:bg-gray-700/30 rounded-md overflow-visible flex items-end">
 
                                 {/* The Bar */}
                                 <div
-                                    className="w-full bg-emerald-500 rounded-lg transition-all duration-1000 ease-out group-hover:bg-emerald-400 relative"
-                                    style={{ height: `${heightPercent}%` }}
+                                    className={`w-full transition-all duration-1000 ease-out rounded-md ${week.count > 0 ? 'bg-indigo-500' : 'bg-indigo-400 opacity-50'}`}
+                                    style={{ height: `${Math.max(heightPercent, 4)}%` }}
                                 >
-                                    {/* Tooltip Value */}
-                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-                                        {week.count} words
+                                    {/* Tooltip */}
+                                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] py-2 px-3 rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none mb-1">
+                                        <div className="font-bold mb-0.5">{week.label}</div>
+                                        <div>{week.count} mastered</div>
                                     </div>
                                 </div>
-
-                                {/* Floating Improvement Label (Week 2+) */}
-                                {ChangeIcon && changeLabel && (
-                                    <div
-                                        className={`absolute w-full top-2 left-0 flex items-center justify-center gap-0.5 text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity ${changeColor}`}
-                                    >
-                                        <ChangeIcon size={10} strokeWidth={3} />
-                                        <span>{changeLabel}</span>
-                                    </div>
-                                )}
                             </div>
 
-                            <span className="text-[10px] text-gray-400 font-medium mt-3">{week.label}</span>
+                            <span className="text-[10px] mt-3 font-medium text-gray-400 shrink-0">{week.label}</span>
+
+                            {/* Trend Indicator */}
+                            {i > 0 && week.hasPassed && (
+                                <div className={`text-[9px] mt-1 font-bold ${isImproved ? 'text-green-500' : 'text-orange-500'}`}>
+                                    {isImproved ? '↑' : '↓'}
+                                </div>
+                            )}
                         </div>
                     );
                 })}
             </div>
 
+            {/* Footer */}
             <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700/50">
                 <span className="text-xs text-gray-400">Total for {currentMonthLabel}</span>
                 <span className="text-sm font-bold text-gray-900 dark:text-white">{totalCount} mastered</span>

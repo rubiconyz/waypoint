@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Habit } from '../types';
-import { TrendingUp, Calendar, Award, Activity, ChevronDown, Flame, Trophy, AlertTriangle, Clock, TrendingDown, Minus, Flag, Hexagon, Scale, Target } from 'lucide-react';
+import { Habit, HabitStatus } from '../types';
+import { TrendingUp, Calendar, Award, Activity, ChevronDown, Flame, Trophy, AlertTriangle, Clock, TrendingDown, Minus, Flag, Hexagon, Scale, Target, BarChart2 } from 'lucide-react';
 import { RadarChart } from './RadarChart';
 
 interface AnalyticsProps {
@@ -216,54 +216,56 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
     return habit.history[k4];
   };
 
-  // Calculate Weekly Completions for the SELECTED month
+  // Calculate Weekly Completions (Last 4 weeks)
   const getWeeklyCompletions = () => {
-    const weeksData: { label: string, count: number, hasPassed: boolean }[] = [];
-    let weekIndex = 0;
-    let dayOfWeek = startPadding; // 0=Sun...
+    const weeklyData = [];
+    const today = new Date();
 
-    const realToday = new Date();
-    realToday.setHours(0, 0, 0, 0);
+    // Create 4 weekly buckets relative to current date
+    for (let i = 3; i >= 0; i--) {
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - (i * 7) - 6); // Start of window
+      const endOfWeek = new Date(today);
+      endOfWeek.setDate(today.getDate() - (i * 7)); // End of window
 
-    // Initialize first week
-    weeksData.push({ label: 'Week 1', count: 0, hasPassed: false });
+      let completedCount = 0;
+      let totalCount = 0;
 
-    for (let d = 1; d <= lastDay.getDate(); d++) {
-      // Ensure the current week exists
-      if (!weeksData[weekIndex]) {
-        weeksData[weekIndex] = { label: `Week ${weekIndex + 1}`, count: 0, hasPassed: false };
-      }
+      // Iterate through days in this week window
+      for (let d = new Date(startOfWeek); d <= endOfWeek; d.setDate(d.getDate() + 1)) {
+        const dateStr = getLocalDateString(d);
+        const status = habit.history[dateStr];
 
-      // Check if this day has passed (or is today)
-      // If at least one day in the week has passed, we consider the week "started/passed" for stats
-      const currentLoopDate = new Date(year, month, d);
-      if (currentLoopDate <= realToday) {
-        weeksData[weekIndex].hasPassed = true;
-      }
-
-      if (getDayStatus(d) === 'completed') {
-        weeksData[weekIndex].count++;
-      }
-
-      // End of week (Saturday = 6)
-      if (dayOfWeek === 6) {
-        weekIndex++;
-        dayOfWeek = 0;
-        // Initialize next week if we have more days
-        if (d < lastDay.getDate()) {
-          weeksData[weekIndex] = { label: `Week ${weekIndex + 1}`, count: 0, hasPassed: false };
+        // Only count as an opportunity if habit was due? 
+        // For simplicity in this view, we count total days or check frequency.
+        // Let's assume daily frequency for standard view or check valid days.
+        const dayIdx = d.getDay();
+        let isDue = true;
+        if (habit.frequency.type === 'custom' && !habit.frequency.days.includes(dayIdx)) {
+          isDue = false;
         }
-      } else {
-        dayOfWeek++;
+        // Logic: If weekly habit, how to attribute?
+        // Revert to simple "completed" count for now as per original likely behavior
+
+        if (isDue) {
+          totalCount++;
+          if (status === 'completed') completedCount++;
+        }
       }
+
+      weeklyData.push({
+        label: `Week ${4 - i}`,
+        count: completedCount,
+        total: totalCount,
+        rate: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0,
+        start: getLocalDateString(startOfWeek),
+        end: getLocalDateString(endOfWeek)
+      });
     }
-    return weeksData;
+    return weeklyData;
   };
 
   const weeklyData = getWeeklyCompletions();
-
-  // CHANGED: No longer scaling based on max count, but on 7 days (Absolute)
-  // const maxWeeklyCount = Math.max(...weeklyData.map(w => w.count), 1); 
 
   const changeMonth = (offset: number) => {
     const newDate = new Date(currentDate);
@@ -286,7 +288,7 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
           <div className="text-[10px] text-gray-500">Best: {stats.bestStreak}</div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-100 dark:border-700 shadow-sm">
           <div className="flex items-center gap-2 text-blue-500 mb-1">
             <Activity size={18} />
             <span className="text-xs font-semibold uppercase tracking-wider">Rate</span>
@@ -427,66 +429,47 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
           </div>
         </div>
 
-        {/* 3. WEEKLY COMPLETION CHART */}
+        {/* 3. WEEKLY COMPLETIONS CHART (Restored) */}
         <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col h-full min-h-[300px]">
           <h4 className="font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2 shrink-0">
-            <TrendingUp size={16} className="text-gray-400" />
+            <BarChart2 size={16} className="text-gray-400" />
             Weekly Completions
           </h4>
 
-          <div className="flex-1 flex gap-3 px-2 items-stretch w-full">
+          <div className="flex-1 flex gap-3 px-2 items-end w-full pb-2">
             {weeklyData.map((week, i) => {
-              // Percentage based on 7 days (Absolute height for bar)
-              const heightPercent = Math.min((week.count / 7) * 100, 100);
+              // Calculate relative height (max 100%)
+              const heightPercent = week.rate;
 
-              // Calculate improvement vs previous week
-              let ChangeIcon = null;
-              let changeLabel = null;
-              let changeColor = 'text-gray-400';
-
-              // Only show for weeks that have passed/started
-              if (i > 0 && week.hasPassed) {
-                const prevWeek = weeklyData[i - 1];
-                const diff = week.count - prevWeek.count;
-                const diffPercent = Math.round((Math.abs(diff) / 7) * 100);
-
-                if (diff > 0) {
-                  ChangeIcon = TrendingUp;
-                  changeLabel = `${diffPercent}%`;
-                  changeColor = 'text-green-500';
-                } else if (diff < 0) {
-                  ChangeIcon = TrendingDown;
-                  changeLabel = `${diffPercent}%`;
-                  changeColor = 'text-red-500 text-opacity-80';
-                } else {
-                  ChangeIcon = Minus;
-                  changeLabel = '0%';
-                  changeColor = 'text-gray-400 text-opacity-60';
-                }
-              }
+              // Define improvement (simple check against previous week)
+              const prevWeek = weeklyData[i - 1];
+              const isImproved = prevWeek ? week.rate >= prevWeek.rate : true;
 
               return (
-                <div key={i} className="flex-1 flex flex-col items-center group h-full">
-                  <div className="w-full relative flex-1 bg-gray-100 dark:bg-gray-700/30 rounded-md overflow-visible">
-
-                    {/* Floating Improvement Label (Only for week 2+ and passed weeks) */}
-                    {ChangeIcon && changeLabel && (
-                      <div
-                        className={`absolute w-full flex items-center justify-center gap-0.5 text-[9px] font-bold transition-all duration-500 ${changeColor}`}
-                        style={{ bottom: `${heightPercent}%`, marginBottom: '4px' }}
-                      >
-                        <ChangeIcon size={10} strokeWidth={3} />
-                        <span>{changeLabel}</span>
-                      </div>
-                    )}
+                <div key={i} className="flex-1 flex flex-col items-center group h-full justify-end">
+                  <div className="w-full relative flex-1 bg-gray-100 dark:bg-gray-700/30 rounded-md overflow-visible flex items-end">
 
                     {/* Bar */}
                     <div
-                      className={`absolute bottom-0 w-full transition-all duration-500 rounded-b-md ${heightPercent === 100 ? 'rounded-t-md bg-indigo-500' : 'bg-indigo-400'}`}
-                      style={{ height: `${heightPercent}%` }}
-                    />
+                      className={`w-full transition-all duration-1000 ease-out rounded-md ${week.rate >= 80 ? 'bg-indigo-500' : 'bg-indigo-400 opacity-80'}`}
+                      style={{ height: `${Math.max(heightPercent, 4)}%` }} // Min height for visibility
+                    >
+                      {/* Tooltip */}
+                      <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] py-2 px-3 rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none mb-1">
+                        <div className="font-bold mb-0.5">{week.label}</div>
+                        <div>{week.rate}% ({week.count}/{week.total})</div>
+                        <div className="text-gray-400 text-[9px] mt-0.5">{week.start} - {week.end.split('-').slice(1).join('-')}</div>
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-[10px] mt-2 font-medium text-gray-400 shrink-0">{week.label}</span>
+                  <span className="text-[10px] mt-3 font-medium text-gray-400 shrink-0">{week.label}</span>
+
+                  {/* Trend Indicator */}
+                  {i > 0 && (
+                    <div className={`text-[9px] mt-1 font-bold ${week.rate >= weeklyData[i - 1].rate ? 'text-green-500' : 'text-orange-500'}`}>
+                      {week.rate >= weeklyData[i - 1].rate ? '↑' : '↓'}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -494,9 +477,9 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
 
           <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 shrink-0">
             <div className="flex justify-between items-center text-xs text-gray-500">
-              <span>Total for {monthName}</span>
+              <span>Performance</span>
               <div className="font-bold text-gray-900 dark:text-white">
-                {weeklyData.reduce((acc, curr) => acc + curr.count, 0)} completions
+                {Math.round(weeklyData.reduce((acc, curr) => acc + curr.rate, 0) / 4)}% avg
               </div>
             </div>
           </div>
@@ -904,21 +887,29 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
 
                 // Filter for DUE habits (Daily or Custom Day match)
                 const dueHabits = activeHabitsOnDay.filter(h => {
+                  // Status check: If the day is valid for this habit
                   if (h.frequency.type === 'daily') return true;
                   if (h.frequency.type === 'custom') return h.frequency.days.includes(d.getDay());
-                  return true;
+                  return true; // Weekly habits are "due" every day in terms of opportunity? Or just track progress? 
+                  // Let's count them as due to encourage daily engagement, or maybe only if they have history?
+                  // For consistency with Harmony Score, let's treat Weekly as always available for "Done" but maybe not strictly "Missed" if skipped?
+                  // For simplicity/strictness (Ghost Mode): treat as opportunity.
                 });
 
                 let completions = 0;
                 let partials = 0;
+                let activeCount = 0;
 
                 dueHabits.forEach(h => {
                   if (h.history[dateStr] === 'completed') completions++;
                   else if (h.history[dateStr] === 'partial') partials++;
+
+                  // Only count towards denominator if it was due
+                  activeCount++;
                 });
 
                 const totalScore = completions + (partials * 0.5);
-                const percentage = dueHabits.length > 0 ? Math.round((totalScore / dueHabits.length) * 100) : 0;
+                const percentage = activeCount > 0 ? Math.round((totalScore / activeCount) * 100) : 0;
 
                 last7Days.push({
                   date: dateStr,
@@ -926,7 +917,8 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
                   completions,
                   partials,
                   totalScore,
-                  percentage
+                  percentage,
+                  activeCount
                 });
               }
 
@@ -940,20 +932,22 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
                         </div>
                         <div className="flex-1 flex items-center gap-2">
                           <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full h-8 overflow-hidden relative">
+                            {/* Bar Layer */}
                             <div
-                              className={`h-full rounded-full transition-all duration-500 flex items-center justify-end pr-3 ${day.percentage >= 80 ? 'bg-gradient-to-r from-green-500 to-green-600' :
-                                day.percentage >= 50 ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
-                                  day.percentage > 0 ? 'bg-gradient-to-r from-orange-400 to-orange-500' :
+                              className={`h-full rounded-full transition-all duration-1000 ease-out flex items-center justify-end pr-3 ${day.percentage >= 80 ? 'bg-emerald-500' :
+                                day.percentage >= 50 ? 'bg-blue-500' :
+                                  day.percentage > 0 ? 'bg-orange-500' :
                                     'bg-gray-300 dark:bg-gray-700'
                                 }`}
                               style={{ width: `${Math.max(day.percentage, 5)}%` }}
                             >
-                              <span className="text-xs font-bold text-white">
-                                {day.completions > 0 && day.completions}
+                              {/* Count Label */}
+                              <span className="text-xs font-bold text-white shadow-sm">
+                                {day.completions > 0 ? day.completions : ''}
                               </span>
                             </div>
                           </div>
-                          <div className="w-16 text-right text-sm text-gray-600 dark:text-gray-400">
+                          <div className="w-10 text-right text-sm font-bold text-gray-700 dark:text-gray-300">
                             {day.percentage}%
                           </div>
                         </div>
@@ -964,17 +958,17 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
               );
             })()}
 
-            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-center gap-4 text-[10px] text-gray-500 dark:text-gray-400">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
                 <span>80%+</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                 <span>50-79%</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-orange-400"></div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-orange-500"></div>
                 <span>&lt;50%</span>
               </div>
             </div>
