@@ -1,6 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import puppeteer from 'puppeteer';
+import { AssemblyAI } from 'assemblyai';
+import ytdl from '@distube/ytdl-core';
+import dotenv from 'dotenv';
+dotenv.config(); // Load variables from .env file
 
 const app = express();
 const PORT = 3001;
@@ -8,6 +12,25 @@ const PORT = 3001;
 // Enable CORS for frontend
 app.use(cors());
 app.use(express.json());
+
+import { fetchNews } from './newsService.js';
+
+// News Endpoint
+app.get('/api/news', async (req, res) => {
+    const { lang = 'de' } = req.query;
+    try {
+        const news = await fetchNews(lang);
+        res.json(news);
+    } catch (error) {
+        console.error('News API Error:', error);
+        res.status(500).json({ error: 'Failed to fetch news' });
+    }
+});
+
+// AssemblyAI Client
+const client = new AssemblyAI({
+    apiKey: process.env.ASSEMBLYAI_API_KEY || 'YOUR_API_KEY_HERE'
+});
 
 // Helper to unescape XML entities
 const unescapeXml = (str) => {
@@ -76,7 +99,6 @@ async function scrapeTranscript(videoId, lang = 'en') {
         // Parse XML
         const segments = [];
         const textRegex = /<text[^>]*>([^<]*)<\/text>/g;
-        const attrRegex = /start="([\d.]+)"|dur="([\d.]+)"/g;
 
         let match;
         while ((match = textRegex.exec(transcriptXml)) !== null) {
@@ -107,10 +129,10 @@ async function scrapeTranscript(videoId, lang = 'en') {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', message: 'Transcript server running (Puppeteer)' });
+    res.json({ status: 'ok', message: 'Transcript server running (Puppeteer + AssemblyAI)' });
 });
 
-// Transcript fetching endpoint
+// Transcript fetching endpoint (Default Scraper)
 app.get('/api/transcript', async (req, res) => {
     const { videoId, lang = 'en' } = req.query;
 
@@ -132,13 +154,9 @@ app.get('/api/transcript', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error fetching transcript:');
-        console.error('Error name:', error.name);
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
+        console.error('Error fetching transcript:', error.message);
 
-        // If video is "unavailable" OR fetch failed OR parsing failed (TypeError), use demo transcript
-        // Basically catch ALL errors to ensure user gets a working experience
+        // Fallback Demo
         if (error) {
             console.log('YouTube fetch/parse failed, using demo transcript...', error.message);
             const demoTranscript = `Hallo und herzlich willkommen zu unserem Video über die deutsche Sprache. Heute werden wir über die Grundlagen der Grammatik sprechen. Die deutsche Sprache hat vier Fälle der Nominativ der Akkusativ der Dativ und der Genitiv. Jeder Fall hat seine eigene Funktion im Satz. Der Nominativ wird für das Subjekt verwendet. Der Akkusativ zeigt das direkte Objekt. Der Dativ wird für das indirekte Objekt benutzt. Und der Genitiv zeigt Besitz oder Zugehörigkeit an. Dies sind die wichtigsten Konzepte die man am Anfang lernen sollte. Vielen Dank fürs Zuschauen und bis zum nächsten Mal`;
@@ -153,12 +171,6 @@ app.get('/api/transcript', async (req, res) => {
                 isDemo: true
             });
         }
-
-        res.status(500).json({
-            error: 'Failed to fetch transcript',
-            detail: error.message,
-            type: error.name
-        });
     }
 });
 
@@ -178,39 +190,23 @@ app.get('/api/translate/leo', async (req, res) => {
         const response = await fetch(url);
         const xml = await response.text();
 
-        // Simple Regex Parsing for the first meaningful translation
-        // Leo XML structure typically has <entry> <side> <words> <word>...</word> </words> </side> </entry>
-
-        // We want to find the side that is NOT the search word (roughly).
-        // Actually, Leo returns matches. The search word is usually on one side (e.g. 'de'), target on 'en'.
-
-        // Let's look for <entry> blocks.
-        // A simplistic approach: find the first <side lang="en">...</side> block inside the first entry.
-
         // 1. Extract first entry
         const entryMatch = /<entry[^>]*>(.*?)<\/entry>/s.exec(xml);
         if (entryMatch) {
             const entryContent = entryMatch[1];
-
             // 2. Extract English side (assuming 'en' is target)
-            // Note: Leo uses lang="en" or lang="de" attributes on <side>
             const sideMatch = /<side[^>]*lang="en"[^>]*>(.*?)<\/side>/s.exec(entryContent);
-
             if (sideMatch) {
                 const sideContent = sideMatch[1];
                 // 3. Extract the word inside <words>...<word>...</word>...
                 const wordMatch = /<word[^>]*>(.*?)<\/word>/s.exec(sideContent);
                 if (wordMatch) {
                     let translation = unescapeXml(wordMatch[1]);
-                    // Remove optional parts often in pipes or brackets if necessary, but Leo usually gives clean matches first.
-                    // Clean up any residual tags if Leo puts them there
                     translation = translation.replace(/<[^>]+>/g, '');
-
                     return res.json({ translation });
                 }
             }
         }
-
         return res.json({ translation: null, message: "No direct match found" });
 
     } catch (error) {
@@ -219,7 +215,122 @@ app.get('/api/translate/leo', async (req, res) => {
     }
 });
 
+
+// AssemblyAI Transcription Endpoint
+app.post('/api/assemblyai/transcribe', async (req, res) => {
+    const { videoId, languageCode } = req.body;
+
+    if (!videoId) {
+        return res.status(400).json({ error: 'videoId is required' });
+    }
+
+    // Check API Key
+    if (!process.env.ASSEMBLYAI_API_KEY) {
+        return res.status(500).json({ error: 'ASSEMBLYAI_API_KEY not configured on server' });
+    }
+
+    const tempFilePath = `/tmp/audio_${videoId}_${Date.now()}.m4a`;
+
+    try {
+        console.log(`Starting AssemblyAI transcription for video: ${videoId}`);
+
+        const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+        // 1. Download audio using yt-dlp (more reliable than ytdl-core)
+        console.log('Downloading audio from YouTube using yt-dlp...');
+
+        const { unlinkSync, existsSync } = await import('fs');
+        const { exec } = await import('child_process');
+        const { promisify } = await import('util');
+        const execAsync = promisify(exec);
+
+        const ytdlpPath = './yt-dlp'; // Local yt-dlp binary
+
+        try {
+            const { stdout, stderr } = await execAsync(
+                `${ytdlpPath} -f "bestaudio[ext=m4a]/bestaudio" -o "${tempFilePath}" --no-playlist "${videoUrl}"`,
+                { timeout: 120000 } // 2 minute timeout
+            );
+            console.log('Audio downloaded successfully.');
+            if (stderr) console.log('yt-dlp stderr:', stderr);
+        } catch (ytdlpError) {
+            console.error('yt-dlp failed:', ytdlpError.message);
+            return res.status(500).json({ error: 'Failed to extract audio from YouTube. Video might be restricted.' });
+        }
+
+        // 2. Upload to AssemblyAI
+        console.log('Uploading audio to AssemblyAI...');
+        const uploadUrl = await client.files.upload(tempFilePath);
+        console.log('Audio uploaded to AssemblyAI.');
+
+        // 3. Submit for transcription
+        const config = {
+            audio_url: uploadUrl,
+            speaker_labels: true,
+            language_code: languageCode || undefined
+        };
+
+        const transcript = await client.transcripts.transcribe(config);
+
+        // Clean up temp file
+        if (existsSync(tempFilePath)) {
+            unlinkSync(tempFilePath);
+        }
+
+        if (transcript.status === 'error') {
+            throw new Error(transcript.error);
+        }
+
+        // 3. Process Result - Include word-level timestamps
+        const segments = [];
+        if (transcript.utterances) {
+            for (const utterance of transcript.utterances) {
+                // Get words for this utterance
+                const utteranceWords = transcript.words
+                    ? transcript.words.filter(w => w.start >= utterance.start && w.end <= utterance.end)
+                    : [];
+
+                segments.push({
+                    text: utterance.text,
+                    speaker: `Speaker ${utterance.speaker}`,
+                    start: utterance.start / 1000, // Convert ms to seconds for frontend
+                    duration: (utterance.end - utterance.start) / 1000,
+                    fullSentence: utterance.text,
+                    words: utteranceWords.map(w => ({
+                        text: w.text,
+                        start: w.start / 1000,
+                        end: w.end / 1000
+                    }))
+                });
+            }
+        } else {
+            // Fallback if no utterances (sometimes happens with short audio or no diarization)
+            const allWords = transcript.words || [];
+            segments.push({
+                text: transcript.text,
+                start: 0,
+                duration: transcript.audio_duration || 0,
+                speaker: 'Speaker A',
+                words: allWords.map(w => ({
+                    text: w.text,
+                    start: w.start / 1000,
+                    end: w.end / 1000
+                }))
+            });
+        }
+
+        console.log(`AssemblyAI success: ${segments.length} segments.`);
+        res.json({ segments });
+
+    } catch (error) {
+        console.error('AssemblyAI Error:', error);
+        res.status(500).json({ error: 'AssemblyAI transcription failed', details: error.message });
+    }
+});
+
+
 app.listen(PORT, () => {
     console.log(`🚀 Transcript server running on http://localhost:${PORT}`);
-    console.log(`📝 API endpoint: http://localhost:${PORT}/api/transcript?videoId=VIDEO_ID&lang=LANG_CODE`);
+    console.log(`📝 Default API: http://localhost:${PORT}/api/transcript?videoId=VIDEO_ID`);
+    console.log(`🎙️ AssemblyAI API: POST http://localhost:${PORT}/api/assemblyai/transcribe`);
 });

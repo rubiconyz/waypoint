@@ -579,7 +579,14 @@ const App: React.FC = () => {
             ...h,
             frequency: h.frequency || { type: 'daily', days: [] },
             createdAt: h.createdAt || earliestDate,
-            history: cleanHistory
+            history: cleanHistory,
+            // RECALCULATE STREAK HERE to ensure it's always fresh on load
+            // This fixes the bug where "yesterday missed" isn't reflected until an update happens
+            streak: calculateStreak({
+              ...h,
+              frequency: h.frequency || { type: 'daily', days: [] },
+              history: cleanHistory
+            })
           };
         });
       } catch (e) {

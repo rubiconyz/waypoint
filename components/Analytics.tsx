@@ -570,6 +570,8 @@ const InsightCard = ({ icon: Icon, title, value, description, trend, trendLabel,
 export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
   // State for expanded habit detail
   const [expandedHabitId, setExpandedHabitId] = useState<string | null>(null);
+  // State for weekly trend navigation (0 = current week, 1 = last week, etc.)
+  const [weekOffset, setWeekOffset] = useState(0);
 
   const insights = useMemo(() => {
     if (habits.length === 0) return null;
@@ -910,9 +912,35 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
 
       {/* Weekly Trend Bar Chart */}
       <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm transition-colors">
-        <div className="flex items-center gap-2 mb-6">
-          <TrendingUp className="text-gray-400" size={20} />
-          <h3 className="font-semibold text-gray-800 dark:text-white">Weekly Completion Trend</h3>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="text-gray-400" size={20} />
+            <h3 className="font-semibold text-gray-800 dark:text-white">Weekly Completion Trend</h3>
+          </div>
+
+          {/* Week Navigation */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setWeekOffset(weekOffset + 1)}
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-500 transition-colors"
+              title="Previous Week"
+            >
+              <ChevronDown size={18} className="rotate-90" />
+            </button>
+
+            <span className="text-sm text-gray-500 dark:text-gray-400 min-w-[100px] text-center">
+              {weekOffset === 0 ? 'This Week' : weekOffset === 1 ? 'Last Week' : `${weekOffset} weeks ago`}
+            </span>
+
+            <button
+              onClick={() => setWeekOffset(weekOffset - 1)}
+              disabled={weekOffset === 0}
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              title="Next Week"
+            >
+              <ChevronDown size={18} className="-rotate-90" />
+            </button>
+          </div>
         </div>
 
         {habits.length === 0 ? (
@@ -924,6 +952,8 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
             {(() => {
               const last7Days = [];
               const today = new Date();
+              // Apply week offset
+              today.setDate(today.getDate() - (weekOffset * 7));
               for (let i = 6; i >= 0; i--) {
                 const d = new Date(today);
                 d.setDate(d.getDate() - i);

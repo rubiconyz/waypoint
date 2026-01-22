@@ -126,6 +126,15 @@ export interface Challenge {
   createdAt: string;
 }
 
+// Word Mastery Levels for SRS
+// 0 = New (never reviewed)
+// 1 = Seen (reviewed once, still unfamiliar)
+// 2 = Learning (starting to recognize)
+// 3 = Familiar (recognizes in context)
+// 4 = Almost Known (rarely mistakes)
+// 5 = Mastered (fully acquired)
+export type WordMasteryLevel = 0 | 1 | 2 | 3 | 4 | 5;
+
 export interface SavedWord {
   id: string;
   word: string;
@@ -134,16 +143,28 @@ export interface SavedWord {
   videoId: string;
   timestamp: number;
   addedAt: string; // ISO date
-  status: 'learning' | 'known';
+  status: 'learning' | 'known'; // Legacy field for backwards compatibility
   sourceTitle?: string;
   channelTitle?: string;
-  mastery?: number; // 0-5
+  mastery: WordMasteryLevel; // 0-5 mastery level
+  nextReviewDate?: string; // ISO date for SRS scheduling
+  reviewCount?: number; // Total times reviewed
+  lastReviewedAt?: string; // ISO date of last review
+}
+
+export interface WordTiming {
+  text: string;
+  start: number;
+  end: number;
 }
 
 export interface TranscriptSegment {
   text: string;
   start: number;
   duration: number;
+  fullSentence?: string; // Complete sentence this segment belongs to (for Grammar Coach)
+  speaker?: string; // Detected speaker label (e.g., "Speaker 1", "Speaker 2")
+  words?: WordTiming[]; // Word-level timestamps for precise underline timing
 }
 
 export interface RecentVideo {
@@ -155,6 +176,31 @@ export interface RecentVideo {
   segments?: TranscriptSegment[];
 }
 
-export interface DailyUsageLog {
-  [date: string]: number; // date "YYYY-MM-DD" -> seconds watched
+
+export interface NewsArticle {
+  id: string;
+  title: string;
+  excerpt: string;
+  source: string;
+  sourceUrl: string;
+  publishedAt: string;
+  imageUrl?: string;
+  language: string;
+}
+
+export interface RewrittenArticle {
+  originalTitle: string;
+  originalSource: string;
+  originalUrl: string;
+  cefrLevel: 'A2' | 'B1' | 'B2';
+  content: string;
+  vocabulary: Array<{
+    word: string;
+    translation: string;
+    cefrLevel: string;
+  }>;
+  questions: Array<{
+    question: string;
+    answer: string;
+  }>;
 }

@@ -10,20 +10,31 @@ interface FlashcardSessionProps {
     onUpdateMastery?: (id: string, newMastery: number) => void;
     onLogTime?: (seconds: number) => void;
     title?: string;
+    initialMode?: StudyMode;
+    initialDirection?: Direction;
 }
 
 type StudyMode = 'flip' | 'typing' | 'multiple_choice' | 'cloze';
 type Direction = 'forward' | 'reverse'; // forward: Word -> Translation, reverse: Translation -> Word
 
-export const FlashcardSession: React.FC<FlashcardSessionProps> = ({ words, onClose, onUpdateWordStatus, onUpdateMastery, onLogTime, title = "Study Session" }) => {
+export const FlashcardSession: React.FC<FlashcardSessionProps> = ({
+    words,
+    onClose,
+    onUpdateWordStatus,
+    onUpdateMastery,
+    onLogTime,
+    title = "Study Session",
+    initialMode = 'flip',
+    initialDirection = 'forward'
+}) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isFlipped, setIsFlipped] = useState(false);
     const [stats, setStats] = useState({ learned: 0, review: 0 });
     const [isComplete, setIsComplete] = useState(false);
 
     // Modes & Settings
-    const [mode, setMode] = useState<StudyMode>('flip');
-    const [direction, setDirection] = useState<Direction>('forward');
+    const [mode, setMode] = useState<StudyMode>(initialMode);
+    const [direction, setDirection] = useState<Direction>(initialDirection);
 
     // Time Logging
     useEffect(() => {

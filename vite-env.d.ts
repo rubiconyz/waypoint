@@ -1,10 +1,10 @@
-/// \u003creference types="vite/client" />
+/// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-    readonly VITE_API_KEY: string
-    // add more env variables as needed
+    readonly VITE_API_KEY: string;
+    readonly VITE_ASSEMBLYAI_API_KEY: string;
 }
 
 interface ImportMeta {
-    readonly env: ImportMetaEnv
+    readonly env: ImportMetaEnv;
 }
