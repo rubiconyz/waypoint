@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { ImageSize, AspectRatio, AIStudioWindow, TranscriptSegment } from "../types";
+import { ImageSize, AspectRatio, AIStudioWindow, TranscriptSegment, Habit, SavedWord, RecentVideo } from "../types";
 
 // Helper to handle the specific API key selection flow for Pro models
 async function ensureApiKeySelected(): Promise<void> {
@@ -545,9 +545,6 @@ export const extractVocabulary = async (
   }
 };
 
-/**
- * Comprehension Questions - Generate quiz
- */
 export const generateComprehensionQuestions = async (
   text: string,
   language: string,
@@ -587,6 +584,228 @@ export const generateComprehensionQuestions = async (
     return [];
   } catch (error) {
     console.error("Error generating questions:", error);
+    return [];
+  }
+};
+
+/**
+ * Weekly AI Summary - Generate personalized weekly insights for habits
+ */
+export interface WeeklySummary {
+  headline: string;
+  highlights: string[];
+  struggles: string[];
+  tipOfTheWeek: string;
+}
+
+export const getWeeklySummary = async (
+  habits: Habit[]
+): Promise<WeeklySummary | null> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+
+    // Build habit summary data
+    const habitData = habits.map(h => {
+      const completedCount = Object.values(h.history).filter(s => s === 'completed').length;
+      const last7Days = Object.entries(h.history)
+        .filter(([date]) => {
+          const d = new Date(date);
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          return d >= weekAgo;
+        })
+        .map(([, status]) => status);
+
+      return {
+        title: h.title,
+        category: h.category,
+        streak: h.streak,
+        totalCompletions: completedCount,
+        last7Days: last7Days.filter(s => s === 'completed').length,
+        frequency: h.frequency.type
+      };
+    });
+
+    const prompt = `
+      Analyze this week's habit data and provide personalized insights.
+      
+      Habits: ${JSON.stringify(habitData)}
+      
+      Return ONLY valid JSON in this exact format:
+      {
+        "headline": "One engaging sentence summarizing the week (include % if relevant)",
+        "highlights": ["Achievement 1", "Achievement 2"],
+        "struggles": ["Area to improve 1"],
+        "tipOfTheWeek": "One actionable, specific tip based on the data"
+      }
+      
+      Rules:
+      - Be encouraging but honest
+      - Maximum 2-3 highlights, 1-2 struggles
+      - Tip should be specific to user's actual habits
+      - Keep all text concise (under 15 words per item)
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts: [{ text: prompt }] }
+    });
+
+    if (response.candidates && response.candidates[0].content && response.candidates[0].content.parts) {
+      const text = response.candidates[0].content.parts[0].text || "{}";
+      const cleanText = text.replace(/```json\n|\n```/g, '').replace(/```/g, '').trim();
+      return JSON.parse(cleanText);
+    }
+    return null;
+  } catch (error) {
+    console.error("Error generating weekly summary:", error);
+    return null;
+  }
+};
+
+/**
+ * AI Habit Coach - Get personalized pattern insights and suggestions
+ */
+export interface HabitCoachInsights {
+  patternInsights: string[];
+  suggestions: string[];
+  encouragement: string;
+}
+
+export const getHabitCoachInsights = async (
+  habits: Habit[]
+): Promise<HabitCoachInsights | null> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+
+    // Build detailed habit data for analysis
+    const habitData = habits.map(h => {
+      const historyEntries = Object.entries(h.history);
+      const byDayOfWeek: Record<number, { completed: number; total: number }> = {};
+
+      historyEntries.forEach(([date, status]) => {
+        const day = new Date(date).getDay();
+        if (!byDayOfWeek[day]) byDayOfWeek[day] = { completed: 0, total: 0 };
+        byDayOfWeek[day].total++;
+        if (status === 'completed') byDayOfWeek[day].completed++;
+      });
+
+      return {
+        title: h.title,
+        category: h.category,
+        streak: h.streak,
+        frequency: h.frequency.type,
+        dayPatterns: byDayOfWeek,
+        totalHistory: historyEntries.length
+      };
+    });
+
+    const prompt = `
+      You are an AI habit coach. Analyze these habits and find actionable patterns.
+      
+      Habit Data: ${JSON.stringify(habitData)}
+      
+      Return ONLY valid JSON:
+      {
+        "patternInsights": [
+          "Pattern 1 (specific observation about timing, consistency, etc.)",
+          "Pattern 2"
+        ],
+        "suggestions": [
+          "Actionable suggestion 1",
+          "Actionable suggestion 2"
+        ],
+        "encouragement": "One personalized motivational message"
+      }
+      
+      Rules:
+      - Identify SPECIFIC patterns (e.g., "You complete workouts 80% more on mornings")
+      - Suggestions should be concrete (include days, times, or specific actions)
+      - Maximum 2-3 insights, 2 suggestions
+      - Keep each item under 20 words
+      - Reference actual habit names when relevant
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts: [{ text: prompt }] }
+    });
+
+    if (response.candidates && response.candidates[0].content && response.candidates[0].content.parts) {
+      const text = response.candidates[0].content.parts[0].text || "{}";
+      const cleanText = text.replace(/```json\n|\n```/g, '').replace(/```/g, '').trim();
+      return JSON.parse(cleanText);
+    }
+    return null;
+  } catch (error) {
+    console.error("Error generating habit coach insights:", error);
+    return null;
+  }
+};
+
+/**
+ * Content Recommendations - Suggest videos based on vocabulary level
+ */
+export interface ContentRecommendation {
+  title: string;
+  reason: string;
+  searchQuery: string;
+  difficulty: 'easier' | 'right' | 'challenging';
+}
+
+export const getContentRecommendations = async (
+  savedWords: SavedWord[],
+  targetLanguage: string,
+  recentVideos: RecentVideo[]
+): Promise<ContentRecommendation[]> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+
+    // Analyze vocabulary level
+    const wordSample = savedWords.slice(0, 30).map(w => ({
+      word: w.word,
+      mastery: w.mastery,
+      context: w.context?.slice(0, 50)
+    }));
+
+    const recentTopics = recentVideos.slice(0, 5).map(v => v.title);
+
+    const prompt = `
+      You are a language learning content curator.
+      
+      User's saved vocabulary (${targetLanguage}): ${JSON.stringify(wordSample)}
+      Recently watched: ${JSON.stringify(recentTopics)}
+      
+      Suggest 4 YouTube videos that match their level. Return ONLY valid JSON:
+      [
+        {
+          "title": "Suggested content title",
+          "reason": "Why this matches their level",
+          "searchQuery": "YouTube search query in ${targetLanguage}",
+          "difficulty": "right"
+        }
+      ]
+      
+      Rules:
+      - Mix difficulties: 1 easier (review), 2 right level, 1 challenging
+      - Avoid topics they recently watched
+      - searchQuery should find real content (news, vlogs, interviews)
+      - Keep reasons under 10 words
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts: [{ text: prompt }] }
+    });
+
+    if (response.candidates && response.candidates[0].content && response.candidates[0].content.parts) {
+      const text = response.candidates[0].content.parts[0].text || "[]";
+      const cleanText = text.replace(/```json\n|\n```/g, '').replace(/```/g, '').trim();
+      return JSON.parse(cleanText);
+    }
+    return [];
+  } catch (error) {
+    console.error("Error generating content recommendations:", error);
     return [];
   }
 };

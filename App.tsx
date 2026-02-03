@@ -9,9 +9,10 @@ import { AnalyticsTab as ImmersionAnalyticsTab } from './components/Immersion/An
 import { BadgeNotification } from './components/BadgeComponents';
 
 import { MountainClimber } from './components/MountainClimber';
+import { MuscleRecoveryTab } from './components/MuscleRecoveryTab';
 import { AuthModal } from './components/AuthModal';
-import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, User, Menu, Command, Plus, Coins, Users, Cloud, Languages, BookOpen } from 'lucide-react';
-import { Habit, HabitFrequency, Badge, BadgeProgress, Challenge, SavedWord, RecentVideo, DailyUsageLog } from './types';
+import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, User, Menu, Command, Plus, Coins, Users, Cloud, Languages, BookOpen, Activity } from 'lucide-react';
+import { Habit, HabitFrequency, Badge, BadgeProgress, Challenge, SavedWord, RecentVideo, DailyUsageLog, WorkoutLog, WordMasteryLevel } from './types';
 import { checkBadgeUnlocks } from './badges';
 import { initialHabits, initialSavedWords } from './data';
 import confetti from 'canvas-confetti';
@@ -48,37 +49,19 @@ import {
   subscribeToUserChallenges
 } from './services/firestoreService';
 
-const STORAGE_KEY = 'habitvision_data';
-const THEME_KEY = 'habitvision_theme';
-const BADGES_KEY = 'habitvision_badges';
-const TOTAL_HABITS_KEY = 'habitvision_total_habits_created';
-const COINS_KEY = 'habitvision_coins';
-const CHECKPOINTS_KEY = 'habitvision_unlocked_checkpoints';
-const ACTIVE_TAB_KEY = 'habitvision_active_tab';
+import { STORAGE_KEYS } from './constants';
+import { getLocalDateString, parseLocalDate, getWeekKey } from './utils/dateUtils';
 
-// Helper function to get date string in local timezone (YYYY-MM-DD)
-const getLocalDateString = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-// Helper to get week number
-const getWeekKey = (date: Date) => {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-  const yearStart = new Date(d.getFullYear(), 0, 1);
-  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  return `${d.getFullYear()}-W${weekNo}`;
-};
-
-// Helper to safely parse local date string 'YYYY-MM-DD' to Date object at local midnight
-const parseLocalDate = (dateStr: string): Date => {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day);
-};
+const {
+  HABITS: STORAGE_KEY,
+  THEME: THEME_KEY,
+  BADGES: BADGES_KEY,
+  TOTAL_HABITS: TOTAL_HABITS_KEY,
+  COINS: COINS_KEY,
+  CHECKPOINTS: CHECKPOINTS_KEY,
+  ACTIVE_TAB: ACTIVE_TAB_KEY,
+  WORKOUT_LOGS: WORKOUT_LOGS_KEY
+} = STORAGE_KEYS;
 
 const calculateStreak = (habit: Habit) => {
   // Weekly Frequency Logic
@@ -263,7 +246,7 @@ const App: React.FC = () => {
     return JSON.parse(localStorage.getItem('habitvision_seen_tour_steps') || '[]');
   });
 
-  const [activeTab, setActiveTab] = useState<'tracker' | 'analytics' | 'badges' | 'challenges' | 'mountain' | 'immersion' | 'vocab' | 'immersion-analytics'>(() => {
+  const [activeTab, setActiveTab] = useState<'tracker' | 'analytics' | 'badges' | 'challenges' | 'mountain' | 'recovery' | 'immersion' | 'vocab' | 'immersion-analytics'>(() => {
     const saved = localStorage.getItem(ACTIVE_TAB_KEY);
     return (saved as any) || 'tracker';
   });
@@ -308,6 +291,33 @@ const App: React.FC = () => {
     localStorage.setItem('habitvision_immersion_logs', JSON.stringify(immersionLogs));
   }, [immersionLogs]);
 
+  // Muscle Recovery State
+  const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>(() => {
+    const saved = localStorage.getItem(WORKOUT_LOGS_KEY);
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem(WORKOUT_LOGS_KEY, JSON.stringify(workoutLogs));
+  }, [workoutLogs]);
+
+  const handleAddWorkout = (log: Omit<WorkoutLog, 'id' | 'createdAt'>) => {
+    const newLog: WorkoutLog = {
+      ...log,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+    };
+    setWorkoutLogs(prev => [newLog, ...prev]);
+  };
+
+  const handleDeleteWorkout = (id: string) => {
+    setWorkoutLogs(prev => prev.filter(log => log.id !== id));
+  };
+
+  const handleUpdateWorkout = (updatedLog: WorkoutLog) => {
+    setWorkoutLogs(prev => prev.map(log => log.id === updatedLog.id ? updatedLog : log));
+  };
+
   const handleAddSavedWord = (word: SavedWord) => {
     setAllSavedWords(prev => {
       // Check for duplicates by word content
@@ -322,7 +332,7 @@ const App: React.FC = () => {
     setAllSavedWords(prev => prev.map(w => {
       if (w.id !== id) return w;
 
-      const updatedMastery = Math.max(0, Math.min(5, newMastery));
+      const updatedMastery = Math.max(0, Math.min(5, newMastery)) as WordMasteryLevel;
       // Auto-promote/demote based on mastery
       const newStatus = updatedMastery === 5 ? 'known' : 'learning';
 
@@ -726,12 +736,10 @@ const App: React.FC = () => {
     });
 
     if (hasChanges) {
-      if (hasChanges) {
-        setChallenges(updated);
-        // FIREBASE: Save progress updates to remote
-        if (user) {
-          updated.forEach(c => saveChallengeToFirestore(c));
-        }
+      setChallenges(updated);
+      // FIREBASE: Save progress updates to remote
+      if (user) {
+        updated.forEach(c => saveChallengeToFirestore(c));
       }
     }
   }, [habits, user?.uid]);
@@ -937,7 +945,6 @@ const App: React.FC = () => {
 
     const saveBadgesToFirestore = async () => {
       try {
-        await saveBadgeProgressToFirestore(user.uid, badgeProgress);
         await saveBadgeProgressToFirestore(user.uid, badgeProgress);
         await saveUserStatsToFirestore(user.uid, {
           totalHabitsCreated,
@@ -1394,6 +1401,10 @@ const App: React.FC = () => {
                     <Mountain size={16} />
                     <span className="hidden sm:inline">Mountain</span>
                   </button>
+                  <button onClick={() => setActiveTab('recovery')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'recovery' ? 'bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                    <Activity size={16} />
+                    <span className="hidden sm:inline">Recovery</span>
+                  </button>
                 </>
               ) : (
                 <>
@@ -1493,26 +1504,6 @@ const App: React.FC = () => {
         </button>
       )}
 
-
-      {/* Global Action Button (Mobile Only) */}
-      {
-        !isSettingsOpen && activeTab === 'tracker' && (
-          <button
-            onClick={() => {
-              // Trigger add habit logic (we need access to setIsAdding in HabitList, but it's internal state)
-              // Alternative: dispatch visible event or use context.
-              // For now, let's target the hidden button in HabitList header if present
-              document.getElementById('btn-new-habit')?.click();
-            }}
-            className={`md:hidden fixed bottom-24 right-6 w-14 h-14 rounded-2xl shadow-xl flex items-center justify-center text-white z-50 transition-all active:scale-95 ${wallpaper !== 'none'
-              ? 'bg-gradient-to-br from-indigo-500/75 to-purple-600/75 backdrop-blur-sm'
-              : 'bg-gradient-to-br from-indigo-500 to-purple-600'
-              }`}
-          >
-            <Plus size={28} strokeWidth={2.5} />
-          </button>
-        )
-      }
       {/* Main Content Area */}
       <main className={`w-full px-4 py-8 pb-24 md:pb-8 ${appMode === 'habits' ? 'max-w-5xl mx-auto' : ''}`}>
         {activeTab === 'tracker' ? (
@@ -1691,6 +1682,15 @@ const App: React.FC = () => {
                 unlockedCheckpoints={unlockedCheckpoints}
                 onUnlockCheckpoint={unlockCheckpoint}
                 onShowGuide={handleShowMountainGuide}
+              />
+            )}
+
+            {activeTab === 'recovery' && (
+              <MuscleRecoveryTab
+                workoutLogs={workoutLogs}
+                onAddWorkout={handleAddWorkout}
+                onDeleteWorkout={handleDeleteWorkout}
+                onUpdateWorkout={handleUpdateWorkout}
               />
             )}
           </>

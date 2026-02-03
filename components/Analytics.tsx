@@ -1,19 +1,13 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Habit, HabitStatus } from '../types';
-import { TrendingUp, Calendar, Award, Activity, ChevronDown, Flame, Trophy, AlertTriangle, Clock, TrendingDown, Minus, Flag, Hexagon, Scale, Target, BarChart2 } from 'lucide-react';
+import { TrendingUp, Calendar, Award, Activity, ChevronDown, Flame, Trophy, AlertTriangle, Clock, TrendingDown, Minus, Flag, Hexagon, Scale, Target, BarChart2, Sparkles, RefreshCw, Lightbulb, CheckCircle2 } from 'lucide-react';
 import { RadarChart } from './RadarChart';
+import { getLocalDateString } from '../utils/dateUtils';
+import { getWeeklySummary, WeeklySummary } from '../services/geminiService';
 
 interface AnalyticsProps {
   habits: Habit[];
 }
-
-// Helper function to get date string in local timezone (YYYY-MM-DD)
-const getLocalDateString = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 // Helper to get dates for heatmap (Full current year)
 const getYearDates = () => {
@@ -572,6 +566,39 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
   const [expandedHabitId, setExpandedHabitId] = useState<string | null>(null);
   // State for weekly trend navigation (0 = current week, 1 = last week, etc.)
   const [weekOffset, setWeekOffset] = useState(0);
+
+  // AI Weekly Summary State
+  const [aiSummary, setAiSummary] = useState<WeeklySummary | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const getWeekCacheKey = () => {
+    const now = new Date();
+    const weekNum = Math.ceil((now.getDate() + new Date(now.getFullYear(), now.getMonth(), 1).getDay()) / 7);
+    return `habitvision_ai_summary_${now.getFullYear()}_${now.getMonth()}_${weekNum}`;
+  };
+
+  useEffect(() => {
+    const cached = localStorage.getItem(getWeekCacheKey());
+    if (cached) {
+      try { setAiSummary(JSON.parse(cached)); } catch (e) { }
+    }
+  }, []);
+
+  const fetchAiSummary = async () => {
+    if (habits.length === 0) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const summary = await getWeeklySummary(habits);
+      setAiSummary(summary);
+      if (summary) localStorage.setItem(getWeekCacheKey(), JSON.stringify(summary));
+    } catch (error) {
+      setAiError('Failed to generate summary');
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const insights = useMemo(() => {
     if (habits.length === 0) return null;
@@ -1314,6 +1341,75 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
           )}
         </div>
       </div>
+
+      {/* AI WEEKLY SUMMARY - At end of page */}
+      {habits.length > 0 && (
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm transition-colors">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+              <Sparkles size={18} className="text-indigo-500" />
+              AI Weekly Summary
+            </h3>
+            <button
+              onClick={fetchAiSummary}
+              disabled={aiLoading}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={aiLoading ? 'animate-spin' : ''} />
+              {aiLoading ? 'Generating...' : (aiSummary ? 'Refresh' : 'Generate')}
+            </button>
+          </div>
+
+          {aiLoading && (
+            <div className="flex items-center justify-center py-6">
+              <div className="flex items-center gap-3 text-indigo-500">
+                <RefreshCw className="animate-spin" size={18} />
+                <span className="text-sm">AI is analyzing your habits...</span>
+              </div>
+            </div>
+          )}
+
+          {aiError && <p className="text-center py-4 text-red-500 text-sm">{aiError}</p>}
+
+          {!aiLoading && !aiSummary && !aiError && (
+            <div className="text-center py-6 text-gray-400 dark:text-gray-500">
+              <Sparkles size={24} className="mx-auto mb-2" />
+              <p className="text-sm">Click "Generate" for AI-powered weekly insights</p>
+            </div>
+          )}
+
+          {!aiLoading && aiSummary && (
+            <div className="space-y-4">
+              <p className="text-lg font-semibold text-gray-900 dark:text-white text-center">{aiSummary.headline}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                  <h4 className="font-medium text-green-700 dark:text-green-400 flex items-center gap-2 mb-2">
+                    <CheckCircle2 size={14} /> Highlights
+                  </h4>
+                  <ul className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                    {aiSummary.highlights.map((item, i) => <li key={i}>• {item}</li>)}
+                  </ul>
+                </div>
+                <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg">
+                  <h4 className="font-medium text-orange-700 dark:text-orange-400 flex items-center gap-2 mb-2">
+                    <AlertTriangle size={14} /> Areas to Improve
+                  </h4>
+                  <ul className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                    {aiSummary.struggles.map((item, i) => <li key={i}>• {item}</li>)}
+                  </ul>
+                </div>
+              </div>
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg flex items-start gap-3">
+                <Lightbulb size={18} className="text-yellow-600 dark:text-yellow-400 mt-0.5 shrink-0" />
+                <div>
+                  <span className="font-medium text-yellow-800 dark:text-yellow-300">Tip:</span>
+                  <span className="text-sm text-yellow-900 dark:text-yellow-200 ml-1">{aiSummary.tipOfTheWeek}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

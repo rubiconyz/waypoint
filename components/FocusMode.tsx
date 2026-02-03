@@ -10,16 +10,23 @@ interface FocusModeProps {
 const BrownNoisePlayer = () => {
     const [isPlaying, setIsPlaying] = useState(false);
     const audioContextRef = useRef<AudioContext | null>(null);
-    const noiseNodeRef = useRef<AudioNode | null>(null);
+    const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
     // Default to low volume as brown noise effectively masks at low levels
     const [volume, setVolume] = useState(0.5);
     const gainNodeRef = useRef<GainNode | null>(null);
 
     useEffect(() => {
         return () => {
-            // Cleanup
+            // Cleanup: Stop source node first, then close context
+            if (sourceNodeRef.current) {
+                try {
+                    sourceNodeRef.current.stop();
+                } catch (e) { /* Already stopped */ }
+                sourceNodeRef.current = null;
+            }
             if (audioContextRef.current) {
                 audioContextRef.current.close();
+                audioContextRef.current = null;
             }
             setIsPlaying(false);
         };
@@ -27,12 +34,13 @@ const BrownNoisePlayer = () => {
 
     const toggleNoise = () => {
         if (isPlaying) {
+            // Suspend context (keeps source ready for resume)
             if (audioContextRef.current) {
                 audioContextRef.current.suspend();
             }
             setIsPlaying(false);
         } else {
-            if (!audioContextRef.current) {
+            if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
                 // Initialize Audio Context on first play (requires user gesture)
                 const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
                 const ctx = new AudioContext();
@@ -57,6 +65,7 @@ const BrownNoisePlayer = () => {
                 noiseSource.buffer = noiseBuffer;
                 noiseSource.loop = true;
                 noiseSource.start(0);
+                sourceNodeRef.current = noiseSource; // Store for cleanup
 
                 // Gain (Volume) Node
                 const gainNode = ctx.createGain();

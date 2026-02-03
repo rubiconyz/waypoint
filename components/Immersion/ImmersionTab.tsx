@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, BookOpen, Languages, Plus, Search, Youtube, Captions, Sparkles, Loader2, X, Check, FileText, Mic, Link } from 'lucide-react';
+import { Play, BookOpen, Languages, Plus, Search, Youtube, Captions, Sparkles, Loader2, X, Check, FileText, Mic, Link, Compass, ExternalLink, RefreshCw, Zap, Target, TrendingUp } from 'lucide-react';
 import YouTube, { YouTubeProps } from 'react-youtube';
 import { translateWord } from '../../services/translationService';
-import { getWordLemma, getGrammarExplanation, getDictionaryDefinitions, getElaborateDefinition, refineTranscriptSegments, translateSentence } from '../../services/geminiService';
+import { getWordLemma, getGrammarExplanation, getDictionaryDefinitions, getElaborateDefinition, refineTranscriptSegments, translateSentence, getContentRecommendations, ContentRecommendation } from '../../services/geminiService';
 import { transcribeYouTubeVideo } from '../../services/assemblyAIService';
 import { SavedWord, RecentVideo, TranscriptSegment } from '../../types';
 import { FlashcardSession } from './FlashcardSession';
@@ -118,6 +118,24 @@ export const ImmersionTab: React.FC<ImmersionTabProps> = ({
     const [isRefiningTranscript, setIsRefiningTranscript] = useState(false);
     const [isProRefining, setIsProRefining] = useState(false);
     const [isRefined, setIsRefined] = useState(false); // Track if refinement was successful
+
+    // Content Recommendations State
+    const [recommendations, setRecommendations] = useState<ContentRecommendation[]>([]);
+    const [isLoadingRecs, setIsLoadingRecs] = useState(false);
+
+    // Fetch Content Recommendations
+    const fetchRecommendations = async () => {
+        if (allSavedWords.length < 5) return; // Need enough vocabulary data
+        setIsLoadingRecs(true);
+        try {
+            const recs = await getContentRecommendations(allSavedWords, targetLanguage.name, recentVideos);
+            setRecommendations(recs);
+        } catch (error) {
+            console.error('Failed to fetch recommendations:', error);
+        } finally {
+            setIsLoadingRecs(false);
+        }
+    };
 
     // Hover Translation State
     const [hoverTranslation, setHoverTranslation] = useState<HoverTranslation | null>(null);
@@ -1016,6 +1034,76 @@ export const ImmersionTab: React.FC<ImmersionTabProps> = ({
                                             </div>
                                         )}
                                     </div>
+                                </div>
+                            )}
+                            {/* AI Content Recommendations - Only show when no video and has vocab */}
+                            {!videoUrl && allSavedWords.length >= 5 && (
+                                <div className="bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-emerald-900/20 dark:via-teal-900/20 dark:to-cyan-900/20 rounded-2xl border border-emerald-200/50 dark:border-emerald-700/50 shadow-sm p-6 mb-4">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-2">
+                                            <Compass size={18} className="text-emerald-500" />
+                                            <span className="text-sm font-bold uppercase tracking-widest text-gray-700 dark:text-gray-200">Recommended For You</span>
+                                        </div>
+                                        <button
+                                            onClick={fetchRecommendations}
+                                            disabled={isLoadingRecs}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 bg-white dark:bg-gray-800 rounded-lg border border-emerald-200 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-all disabled:opacity-50"
+                                        >
+                                            <RefreshCw size={14} className={isLoadingRecs ? 'animate-spin' : ''} />
+                                            {isLoadingRecs ? 'Finding...' : (recommendations.length > 0 ? 'Refresh' : 'Get Ideas')}
+                                        </button>
+                                    </div>
+
+                                    {isLoadingRecs && (
+                                        <div className="flex items-center justify-center py-8">
+                                            <div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-400">
+                                                <Loader2 className="animate-spin" size={20} />
+                                                <span className="font-medium">AI is finding videos for your level...</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {!isLoadingRecs && recommendations.length === 0 && (
+                                        <div className="text-center py-6 text-gray-500 dark:text-gray-400">
+                                            <Compass size={32} className="mx-auto mb-2 text-emerald-400/50" />
+                                            <p>Click "Get Ideas" to discover content matched to your vocabulary</p>
+                                        </div>
+                                    )}
+
+                                    {!isLoadingRecs && recommendations.length > 0 && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {recommendations.map((rec, i) => {
+                                                const difficultyConfig = {
+                                                    easier: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', icon: <Zap size={12} /> },
+                                                    right: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-400', icon: <Target size={12} /> },
+                                                    challenging: { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-400', icon: <TrendingUp size={12} /> }
+                                                };
+                                                const config = difficultyConfig[rec.difficulty] || difficultyConfig.right;
+
+                                                return (
+                                                    <a
+                                                        key={i}
+                                                        href={`https://www.youtube.com/results?search_query=${encodeURIComponent(rec.searchQuery)}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="group bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-emerald-400 dark:hover:border-emerald-500 hover:shadow-md transition-all"
+                                                    >
+                                                        <div className="flex items-start justify-between gap-2 mb-2">
+                                                            <h4 className="font-medium text-gray-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-2">
+                                                                {rec.title}
+                                                            </h4>
+                                                            <ExternalLink size={14} className="text-gray-400 group-hover:text-emerald-500 shrink-0 mt-1" />
+                                                        </div>
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{rec.reason}</p>
+                                                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+                                                            {config.icon}
+                                                            {rec.difficulty === 'easier' ? 'Review' : rec.difficulty === 'right' ? 'Your Level' : 'Challenge'}
+                                                        </div>
+                                                    </a>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

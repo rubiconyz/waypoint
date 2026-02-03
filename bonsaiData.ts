@@ -1,4 +1,5 @@
 import { Habit } from './types';
+import { getLocalDateString } from './utils/dateUtils';
 
 export interface BonsaiStage {
     stage: number;
@@ -91,14 +92,6 @@ export const BONSAI_STAGES: BonsaiStage[] = [
         quote: 'The quieter you become, the more you can hear'
     }
 ];
-
-// Helper to format date in local timezone
-const getLocalDateString = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
 
 // Calculate consecutive day streak
 export const calculateDayStreak = (habits: Habit[]): number => {

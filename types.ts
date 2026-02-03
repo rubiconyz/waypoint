@@ -204,3 +204,33 @@ export interface RewrittenArticle {
     answer: string;
   }>;
 }
+
+// Muscle Recovery Types
+export type WorkoutIntensity = 'light' | 'moderate' | 'heavy';
+
+export interface MuscleGroup {
+  id: string;
+  name: string;
+  recoveryHours: number; // Base recovery time in hours
+  bodyView: 'front' | 'back' | 'both';
+  category: 'upper' | 'core' | 'lower';
+}
+
+export interface WorkoutLog {
+  id: string;
+  date: string; // ISO date string YYYY-MM-DD
+  muscleGroups: string[]; // Array of muscle group IDs
+  intensity: WorkoutIntensity;
+  notes?: string;
+  createdAt: string; // ISO timestamp
+}
+
+export interface MuscleRecoveryState {
+  workoutLogs: WorkoutLog[];
+  lastUpdated: string;
+}
+
+// Daily usage logs for immersion time tracking
+export interface DailyUsageLog {
+  [date: string]: number; // date (YYYY-MM-DD) -> seconds
+}

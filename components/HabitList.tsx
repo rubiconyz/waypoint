@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Timer } from './Timer';
 import { Habit, HabitFrequency, AspectRatio, ImageSize } from '../types';
-import { Plus, Flame, Calendar, Check, X, MoreVertical, Trash2, Pencil, Timer as TimerIcon, Play, Pause, Square, SkipForward, BarChart2, PieChart, Star, Languages, Droplets, Moon, Flower2, Footprints, Coffee, BookOpen, Dumbbell, Award, GripVertical, Brain, Heart, Book, Briefcase, Pin, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { Plus, Flame, Calendar, Check, X, MoreVertical, Trash2, Pencil, Timer as TimerIcon, Play, Pause, Square, SkipForward, BarChart2, PieChart, Star, Languages, Droplets, Moon, Flower2, Footprints, Coffee, BookOpen, Dumbbell, Award, GripVertical, Brain, Heart, Book, Briefcase, Pin, ChevronLeft, ChevronRight, Clock, Sparkles, RefreshCw, ChevronDown } from 'lucide-react';
+import { HABIT_CATEGORIES, DAY_ABBREVIATIONS } from '../constants';
+import { getLocalDateString, parseLocalDate, getWeekKey } from '../utils/dateUtils';
+import { getHabitCoachInsights, HabitCoachInsights } from '../services/geminiService';
 
 
 interface HabitListProps {
@@ -14,8 +17,8 @@ interface HabitListProps {
   isTransparent?: boolean;
 }
 
-const CATEGORIES = ['Fitness', 'Learning', 'Mindfulness', 'Health', 'Reading', 'Work', 'Other'];
-const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const CATEGORIES: string[] = [...HABIT_CATEGORIES];
+const DAYS: string[] = [...DAY_ABBREVIATIONS];
 
 // Category icon mapping (Lucide icons)
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
@@ -26,30 +29,6 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   'Reading': <Book size={18} className="text-emerald-500" />,
   'Work': <Briefcase size={18} className="text-amber-800" />,
   'Other': <Star size={18} className="text-yellow-500" />
-};
-
-// Helper function to get date string in local timezone (YYYY-MM-DD)
-const getLocalDateString = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-// Helper to safely parse local date string 'YYYY-MM-DD' to Date object at local midnight
-const parseLocalDate = (dateStr: string): Date => {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day);
-};
-
-// Helper to get week number (ISO week)
-const getWeekKey = (date: Date) => {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-  const yearStart = new Date(d.getFullYear(), 0, 1);
-  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  return `${d.getFullYear()}-W${weekNo}`;
 };
 
 export const HabitList: React.FC<HabitListProps> = ({
@@ -108,6 +87,25 @@ export const HabitList: React.FC<HabitListProps> = ({
   const viewDateString = getLocalDateString(viewDate);
   const today = getLocalDateString(new Date()); // Keep 'today' for comparison
   const isToday = viewDateString === today;
+
+  // AI Coach State
+  const [aiCoach, setAiCoach] = useState<HabitCoachInsights | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [coachExpanded, setCoachExpanded] = useState(false);
+
+  const fetchCoachInsights = async () => {
+    if (habits.length === 0) return;
+    setAiLoading(true);
+    try {
+      const insights = await getHabitCoachInsights(habits);
+      setAiCoach(insights);
+      setCoachExpanded(true);
+    } catch (error) {
+      console.error('AI Coach error:', error);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const handlePrevDay = () => {
     const newDate = new Date(viewDate);
@@ -293,7 +291,59 @@ export const HabitList: React.FC<HabitListProps> = ({
         )}
       </div>
 
+      {/* AI Coach Collapsible Section */}
+      {habits.length > 0 && (
+        <div className={`mb-4 rounded-xl border transition-all overflow-hidden ${isTransparent
+          ? 'bg-white/50 dark:bg-black/50 border-white/20 dark:border-white/10 backdrop-blur-md'
+          : 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800'
+          }`}>
+          <button
+            onClick={() => aiCoach ? setCoachExpanded(!coachExpanded) : fetchCoachInsights()}
+            className="w-full flex items-center justify-between p-4 text-left"
+          >
+            <div className="flex items-center gap-2">
+              <Brain size={18} className="text-purple-500" />
+              <span className="font-medium text-gray-800 dark:text-white">AI Coach</span>
+              {aiLoading && <RefreshCw size={14} className="animate-spin text-purple-500" />}
+            </div>
+            <div className="flex items-center gap-2">
+              {!aiCoach && !aiLoading && (
+                <span className="text-xs text-purple-600 dark:text-purple-400">Get Insights</span>
+              )}
+              <ChevronDown size={16} className={`text-gray-500 transition-transform ${coachExpanded ? 'rotate-180' : ''}`} />
+            </div>
+          </button>
 
+          {coachExpanded && aiCoach && (
+            <div className="px-4 pb-4 space-y-3 animate-fade-in">
+              {aiCoach.patternInsights.length > 0 && (
+                <div>
+                  <h5 className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase mb-1.5">Patterns</h5>
+                  <ul className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                    {aiCoach.patternInsights.slice(0, 2).map((p, i) => <li key={i}>• {p}</li>)}
+                  </ul>
+                </div>
+              )}
+              {aiCoach.suggestions.length > 0 && (
+                <div>
+                  <h5 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase mb-1.5">Suggestions</h5>
+                  <ul className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                    {aiCoach.suggestions.slice(0, 2).map((s, i) => <li key={i}>→ {s}</li>)}
+                  </ul>
+                </div>
+              )}
+              <p className="text-xs text-purple-600 dark:text-purple-400 italic text-center pt-2">"{aiCoach.encouragement}"</p>
+              <button
+                onClick={fetchCoachInsights}
+                disabled={aiLoading}
+                className="w-full text-xs text-purple-600 dark:text-purple-400 hover:underline disabled:opacity-50"
+              >
+                {aiLoading ? 'Refreshing...' : 'Refresh insights'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {isToday && isAdding && (
         <form onSubmit={handleAdd} className={`p-5 rounded-3xl shadow-lg border border-gray-100 dark:border-gray-800 mb-6 animate-fade-in transition-all overflow-hidden ${isTransparent
