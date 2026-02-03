@@ -5,6 +5,7 @@ import { Habit, HabitFrequency, AspectRatio, ImageSize } from '../types';
 import { Plus, Flame, Calendar, Check, X, MoreVertical, Trash2, Pencil, Timer as TimerIcon, Play, Pause, Square, SkipForward, BarChart2, PieChart, Star, Languages, Droplets, Moon, Flower2, Footprints, Coffee, BookOpen, Dumbbell, Award, GripVertical, Brain, Heart, Book, Briefcase, Pin, ChevronLeft, ChevronRight, Clock, MessageCircle } from 'lucide-react';
 import { HABIT_CATEGORIES, DAY_ABBREVIATIONS } from '../constants';
 import { getLocalDateString, parseLocalDate, getWeekKey } from '../utils/dateUtils';
+import { CoachPersona, COACH_PERSONAS } from '../services/geminiService';
 
 
 interface HabitListProps {
@@ -90,6 +91,7 @@ export const HabitList: React.FC<HabitListProps> = ({
 
   // AI Coach Chat State
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [selectedPersona, setSelectedPersona] = useState<CoachPersona>('waypoint');
 
   const handlePrevDay = () => {
     const newDate = new Date(viewDate);
@@ -281,24 +283,34 @@ export const HabitList: React.FC<HabitListProps> = ({
           onClick={() => setIsChatOpen(true)}
           className={`w-full mb-4 p-4 rounded-xl border transition-all flex items-center justify-between group hover:shadow-md ${isTransparent
             ? 'bg-white/50 dark:bg-black/50 border-white/20 dark:border-white/10 backdrop-blur-md hover:bg-white/70 dark:hover:bg-black/70'
-            : 'bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border-purple-200 dark:border-purple-800 hover:from-purple-100 hover:to-indigo-100 dark:hover:from-purple-900/30 dark:hover:to-indigo-900/30'
+            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center shadow-lg">
-              <Brain size={20} className="text-white" />
+            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-gray-200 dark:border-gray-700">
+              <img
+                src={COACH_PERSONAS[selectedPersona].avatar}
+                alt={COACH_PERSONAS[selectedPersona].name}
+                className="w-full h-full object-cover scale-125"
+              />
             </div>
             <div className="text-left">
-              <span className="font-semibold text-gray-800 dark:text-white block">AI Habit Coach</span>
+              <span className="font-semibold text-gray-800 dark:text-white block">{COACH_PERSONAS[selectedPersona].name}</span>
               <span className="text-xs text-gray-500 dark:text-gray-400">Chat for personalized advice</span>
             </div>
           </div>
-          <MessageCircle size={20} className="text-purple-500 group-hover:scale-110 transition-transform" />
+          <MessageCircle size={20} className="text-gray-400 dark:text-gray-500 group-hover:scale-110 transition-transform" />
         </button>
       )}
 
       {/* AI Coach Chat Modal */}
-      <AICoachChat habits={habits} isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      <AICoachChat
+        habits={habits}
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        selectedPersona={selectedPersona}
+        onSelectPersona={setSelectedPersona}
+      />
 
       {isToday && isAdding && (
         <form onSubmit={handleAdd} className={`p-5 rounded-3xl shadow-lg border border-gray-100 dark:border-gray-800 mb-6 animate-fade-in transition-all overflow-hidden ${isTransparent

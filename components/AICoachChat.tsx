@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Brain, Sparkles, Loader2 } from 'lucide-react';
+import { X, Send, Brain, Sparkles, Loader2, ChevronDown, User } from 'lucide-react';
 import { Habit } from '../types';
-import { chatWithHabitCoach, ChatMessage } from '../services/geminiService';
+import { chatWithHabitCoach, ChatMessage, CoachPersona, COACH_PERSONAS } from '../services/geminiService';
 
 interface AICoachChatProps {
     habits: Habit[];
     isOpen: boolean;
     onClose: () => void;
+    selectedPersona: CoachPersona;
+    onSelectPersona: (persona: CoachPersona) => void;
 }
 
 const QUICK_PROMPTS = [
@@ -16,17 +18,47 @@ const QUICK_PROMPTS = [
     "Give me motivation!"
 ];
 
-export const AICoachChat: React.FC<AICoachChatProps> = ({ habits, isOpen, onClose }) => {
+export const AICoachChat: React.FC<AICoachChatProps> = ({ habits, isOpen, onClose, selectedPersona, onSelectPersona }) => {
+    // const [selectedPersona, setSelectedPersona] = useState<CoachPersona>('waypoint'); // Moved to parent
+    const [isPersonaMenuOpen, setIsPersonaMenuOpen] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([
-        { role: 'assistant', content: "Hey! 👋 I'm your AI habit coach. Ask me anything about your habits, or use the prompts below to get started!" }
+        { role: 'assistant', content: "Hey! 👋 I'm Waypoint. Ready to crush some goals?" }
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
+    // Load history when persona changes
     useEffect(() => {
+        const saved = localStorage.getItem(`habitvision_chat_${selectedPersona}`);
+        if (saved) {
+            try {
+                setMessages(JSON.parse(saved));
+            } catch (e) {
+                console.error("Failed to parse chat history", e);
+                // Fallback to greeting
+                setMessages([{
+                    role: 'assistant',
+                    content: COACH_PERSONAS[selectedPersona].greeting
+                }]);
+            }
+        } else {
+            // No history? New greeting.
+            setMessages([{
+                role: 'assistant',
+                content: COACH_PERSONAS[selectedPersona].greeting
+            }]);
+        }
+    }, [selectedPersona]);
+
+    // Save history when messages change
+    // Save history when messages change and scroll to bottom
+    useEffect(() => {
+        if (messages.length > 0) {
+            localStorage.setItem(`habitvision_chat_${selectedPersona}`, JSON.stringify(messages));
+        }
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+    }, [messages, selectedPersona]);
 
     const sendMessage = async (text: string) => {
         if (!text.trim() || isLoading) return;
@@ -37,7 +69,7 @@ export const AICoachChat: React.FC<AICoachChatProps> = ({ habits, isOpen, onClos
         setIsLoading(true);
 
         try {
-            const response = await chatWithHabitCoach(text.trim(), habits, messages);
+            const response = await chatWithHabitCoach(text.trim(), habits, messages, selectedPersona);
             setMessages(prev => [...prev, { role: 'assistant', content: response }]);
         } catch {
             setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, something went wrong. Try again?" }]);
@@ -57,18 +89,61 @@ export const AICoachChat: React.FC<AICoachChatProps> = ({ habits, isOpen, onClos
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg h-[600px] max-h-[80vh] flex flex-col overflow-hidden animate-fade-in">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-500 to-indigo-500">
+                {/* Header with Persona Selector */}
+                <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 relative z-10">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                            <Brain size={22} className="text-white" />
+                        <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden border border-gray-200 dark:border-gray-700 shrink-0">
+                            <img
+                                src={COACH_PERSONAS[selectedPersona].avatar}
+                                alt={COACH_PERSONAS[selectedPersona].name}
+                                className="w-full h-full object-cover scale-125 transition-transform"
+                            />
                         </div>
-                        <div>
-                            <h3 className="font-bold text-white">AI Habit Coach</h3>
-                            <p className="text-xs text-white/70">Powered by Gemini</p>
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsPersonaMenuOpen(!isPersonaMenuOpen)}
+                                className="flex items-center gap-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 px-2 -ml-2 py-1 rounded-lg transition-colors group"
+                            >
+                                <div>
+                                    <h3 className="font-bold text-gray-900 dark:text-white text-left leading-tight">{COACH_PERSONAS[selectedPersona].name}</h3>
+                                    <p className="text-xs text-gray-500 flex items-center gap-1 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors">
+                                        {COACH_PERSONAS[selectedPersona].title} <ChevronDown size={10} />
+                                    </p>
+                                </div>
+                            </button>
+
+                            {/* Persona Dropdown */}
+                            {isPersonaMenuOpen && (
+                                <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden py-1 animate-fade-in z-50">
+                                    <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-900/50">
+                                        Choose Personality
+                                    </div>
+                                    {Object.entries(COACH_PERSONAS).map(([key, persona]) => (
+                                        <button
+                                            key={key}
+                                            onClick={() => {
+                                                onSelectPersona(key as CoachPersona);
+                                                setIsPersonaMenuOpen(false);
+                                            }}
+                                            className={`w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors flex items-center gap-3 border-b border-gray-50 dark:border-gray-700/50 last:border-0 ${selectedPersona === key ? 'bg-gray-50 dark:bg-gray-800/80 text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'
+                                                }`}
+                                        >
+                                            <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 border border-gray-200 dark:border-gray-600">
+                                                <img src={persona.avatar} alt={persona.name} className="w-full h-full object-cover scale-125" />
+                                            </div>
+                                            <div>
+                                                <div className="font-medium text-sm">{persona.name}</div>
+                                                <div className="text-[10px] text-gray-500 dark:text-gray-400 leading-none">{persona.title}</div>
+                                            </div>
+                                            {selectedPersona === key && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-black dark:bg-white" />}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
-                    <button onClick={onClose} className="text-white/80 hover:text-white transition-colors">
-                        <X size={24} />
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full">
+                        <X size={20} />
                     </button>
                 </div>
 
@@ -77,8 +152,8 @@ export const AICoachChat: React.FC<AICoachChatProps> = ({ habits, isOpen, onClos
                     {messages.map((msg, i) => (
                         <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl ${msg.role === 'user'
-                                    ? 'bg-indigo-500 text-white rounded-br-md'
-                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-md'
+                                ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-br-md'
+                                : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-md border border-gray-100 dark:border-gray-700'
                                 }`}>
                                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                             </div>
@@ -87,7 +162,7 @@ export const AICoachChat: React.FC<AICoachChatProps> = ({ habits, isOpen, onClos
                     {isLoading && (
                         <div className="flex justify-start">
                             <div className="bg-gray-100 dark:bg-gray-800 px-4 py-3 rounded-2xl rounded-bl-md flex items-center gap-2">
-                                <Loader2 size={16} className="animate-spin text-indigo-500" />
+                                <Loader2 size={16} className="animate-spin text-gray-500" />
                                 <span className="text-sm text-gray-500">Thinking...</span>
                             </div>
                         </div>
@@ -135,6 +210,6 @@ export const AICoachChat: React.FC<AICoachChatProps> = ({ habits, isOpen, onClos
                     </div>
                 </form>
             </div>
-        </div>
+        </div >
     );
 };
