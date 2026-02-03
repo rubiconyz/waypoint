@@ -809,3 +809,82 @@ export const getContentRecommendations = async (
     return [];
   }
 };
+
+// Chat message type for AI Coach
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+// AI Coach Chat Function
+export const chatWithHabitCoach = async (
+  userMessage: string,
+  habits: Habit[],
+  chatHistory: ChatMessage[]
+): Promise<string> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+
+    // Build habit context
+    const habitContext = habits.map(h => {
+      const completedCount = Object.values(h.history).filter(s => s === 'completed').length;
+      const last7Days = Object.entries(h.history)
+        .filter(([date]) => {
+          const d = new Date(date);
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          return d >= weekAgo;
+        })
+        .map(([, status]) => status);
+
+      return {
+        title: h.title,
+        category: h.category,
+        streak: h.streak,
+        totalCompletions: completedCount,
+        last7DaysCompleted: last7Days.filter(s => s === 'completed').length,
+        last7DaysMissed: last7Days.filter(s => s === null || s === undefined).length
+      };
+    });
+
+    // Build conversation history for context
+    const historyText = chatHistory.slice(-6).map(m =>
+      `${m.role === 'user' ? 'User' : 'Coach'}: ${m.content}`
+    ).join('\n');
+
+    const prompt = `
+You are a friendly, encouraging AI habit coach. You help users build better habits.
+
+USER'S HABITS DATA:
+${JSON.stringify(habitContext, null, 2)}
+
+CONVERSATION HISTORY:
+${historyText}
+
+USER'S NEW MESSAGE: ${userMessage}
+
+RULES:
+- Be warm, supportive, and conversational (not robotic)
+- Reference their ACTUAL habit data when relevant
+- Keep responses concise (2-4 sentences usually)
+- Provide specific, actionable advice
+- Celebrate wins, gently address struggles
+- If asked about a specific habit, look it up in their data
+- Use emojis sparingly for warmth
+
+Respond naturally as their habit coach:`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts: [{ text: prompt }] }
+    });
+
+    if (response.candidates && response.candidates[0].content && response.candidates[0].content.parts) {
+      return response.candidates[0].content.parts[0].text || "I'm here to help! Could you rephrase that?";
+    }
+    return "I'm having trouble thinking right now. Try again?";
+  } catch (error) {
+    console.error("Error in AI Coach chat:", error);
+    return "Sorry, I couldn't connect. Please try again in a moment.";
+  }
+};
