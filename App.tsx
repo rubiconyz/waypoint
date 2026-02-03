@@ -1401,10 +1401,12 @@ const App: React.FC = () => {
                     <Mountain size={16} />
                     <span className="hidden sm:inline">Mountain</span>
                   </button>
-                  <button onClick={() => setActiveTab('recovery')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'recovery' ? 'bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                    <Activity size={16} />
-                    <span className="hidden sm:inline">Recovery</span>
-                  </button>
+                  {habits.some(h => h.category === 'Fitness') && (
+                    <button onClick={() => setActiveTab('recovery')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'recovery' ? 'bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                      <Activity size={16} />
+                      <span className="hidden sm:inline">Recovery</span>
+                    </button>
+                  )}
                 </>
               ) : (
                 <>
