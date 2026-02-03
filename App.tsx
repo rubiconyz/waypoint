@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { HabitList } from './components/HabitList';
+import { AICoachChat } from './components/AICoachChat';
 import { Analytics } from './components/Analytics';
 import { Badges } from './components/Badges';
 import { ChallengesTab } from './components/ChallengesTab';
@@ -11,7 +12,7 @@ import { BadgeNotification } from './components/BadgeComponents';
 import { MountainClimber } from './components/MountainClimber';
 import { MuscleRecoveryTab } from './components/MuscleRecoveryTab';
 import { AuthModal } from './components/AuthModal';
-import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, User, Menu, Command, Plus, Coins, Users, Cloud, Languages, BookOpen, Activity } from 'lucide-react';
+import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, User, Menu, Command, Plus, Coins, Users, Cloud, Languages, BookOpen, Activity, MessageCircle } from 'lucide-react';
 import { Habit, HabitFrequency, Badge, BadgeProgress, Challenge, SavedWord, RecentVideo, DailyUsageLog, WorkoutLog, WordMasteryLevel } from './types';
 import { checkBadgeUnlocks } from './badges';
 import { initialHabits, initialSavedWords } from './data';
@@ -32,6 +33,7 @@ import {
   loadUserStatsFromFirestore,
   deleteHabitFromFirestore
 } from './services/firestoreService';
+import { CoachPersona, COACH_PERSONAS } from './services/geminiService';
 import {
   createChallenge,
   getDaysRemaining,
@@ -296,6 +298,10 @@ const App: React.FC = () => {
     const saved = localStorage.getItem(WORKOUT_LOGS_KEY);
     return saved ? JSON.parse(saved) : [];
   });
+
+  // AI Coach State
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [selectedPersona, setSelectedPersona] = useState<CoachPersona>('waypoint');
 
   useEffect(() => {
     localStorage.setItem(WORKOUT_LOGS_KEY, JSON.stringify(workoutLogs));
@@ -1553,7 +1559,29 @@ const App: React.FC = () => {
                   </button>
                 </div>
               </div>
+
+              {/* AI Coach Card (Moved to Sidebar) */}
+              <button
+                onClick={() => setIsChatOpen(true)}
+                className="w-full p-4 rounded-xl border transition-all flex items-center justify-between group hover:shadow-md bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-gray-200 dark:border-gray-700">
+                    <img
+                      src={COACH_PERSONAS[selectedPersona].avatar}
+                      alt={COACH_PERSONAS[selectedPersona].name}
+                      className="w-full h-full object-cover scale-125"
+                    />
+                  </div>
+                  <div className="text-left">
+                    <span className="font-semibold text-gray-800 dark:text-white block">{COACH_PERSONAS[selectedPersona].name}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Chat for personalized advice</span>
+                  </div>
+                </div>
+                <MessageCircle size={20} className="text-gray-400 dark:text-gray-500 group-hover:scale-110 transition-transform" />
+              </button>
             </div>
+
 
             <div className="order-1 md:order-1 md:col-span-2">
 
@@ -1696,12 +1724,13 @@ const App: React.FC = () => {
               />
             )}
           </>
-        )}
+        )
+        }
 
-      </main>
+      </main >
 
       {/* Settings/Shortcuts Sidebar */}
-      <SettingsSidebar
+      < SettingsSidebar
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         currentWallpaper={wallpaper}
@@ -1737,9 +1766,20 @@ const App: React.FC = () => {
         )
       }
 
+      {/* AI Coach Chat Modal */}
+      <AICoachChat
+        habits={habits}
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        selectedPersona={selectedPersona}
+        onSelectPersona={setSelectedPersona}
+      />
+
       <VercelAnalytics />
     </div >
   );
+
+
 };
 
 export default App;

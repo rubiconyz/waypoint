@@ -155,7 +155,17 @@ export const AICoachChat: React.FC<AICoachChatProps> = ({ habits, isOpen, onClos
                                 ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-br-md'
                                 : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-md border border-gray-100 dark:border-gray-700'
                                 }`}>
-                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                                    {msg.content.split(/(\*\*.*?\*\*|\*.*?\*)/g).map((part, index) => {
+                                        if (part.startsWith('**') && part.endsWith('**')) {
+                                            return <strong key={index}>{part.slice(2, -2)}</strong>;
+                                        }
+                                        if (part.startsWith('*') && part.endsWith('*')) {
+                                            return <em key={index}>{part.slice(1, -1)}</em>;
+                                        }
+                                        return part;
+                                    })}
+                                </div>
                             </div>
                         </div>
                     ))}
