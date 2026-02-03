@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Brain, Sparkles, Loader2, ChevronDown, User } from 'lucide-react';
+import { X, Send, Brain, Sparkles, Loader2, ChevronDown, User, Trash2 } from 'lucide-react';
 import { Habit } from '../types';
 import { chatWithHabitCoach, ChatMessage, CoachPersona, COACH_PERSONAS } from '../services/geminiService';
+import { getLocalDateString } from '../utils/dateUtils';
 
 interface AICoachChatProps {
     habits: Habit[];
@@ -27,6 +28,7 @@ export const AICoachChat: React.FC<AICoachChatProps> = ({ habits, isOpen, onClos
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const hasGeneratedDailySummary = useRef(false);
 
     // Load history when persona changes
     useEffect(() => {
@@ -49,7 +51,44 @@ export const AICoachChat: React.FC<AICoachChatProps> = ({ habits, isOpen, onClos
                 content: COACH_PERSONAS[selectedPersona].greeting
             }]);
         }
+        hasGeneratedDailySummary.current = false; // Reset when persona changes
     }, [selectedPersona]);
+
+    // Proactive Daily Summary: Generate personalized greeting when chat opens
+    useEffect(() => {
+        if (!isOpen || habits.length === 0 || hasGeneratedDailySummary.current) return;
+
+        const today = getLocalDateString(new Date());
+        const lastGreetedKey = `habitvision_last_greeted_${selectedPersona}`;
+        const lastGreeted = localStorage.getItem(lastGreetedKey);
+
+        // Only generate once per day per persona
+        if (lastGreeted === today) return;
+
+        const generateDailySummary = async () => {
+            setIsLoading(true);
+            hasGeneratedDailySummary.current = true;
+
+            try {
+                const summaryPrompt = "Give me a quick daily update. What's on my plate today and how did I do yesterday?";
+                const response = await chatWithHabitCoach(summaryPrompt, habits, [], selectedPersona);
+
+                setMessages([{ role: 'assistant', content: response }]);
+                localStorage.setItem(lastGreetedKey, today);
+            } catch (error) {
+                console.error("Failed to generate daily summary:", error);
+                // Fallback to static greeting
+                setMessages([{
+                    role: 'assistant',
+                    content: COACH_PERSONAS[selectedPersona].greeting
+                }]);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        generateDailySummary();
+    }, [isOpen, habits, selectedPersona]);
 
     // Save history when messages change
     // Save history when messages change and scroll to bottom
@@ -81,6 +120,15 @@ export const AICoachChat: React.FC<AICoachChatProps> = ({ habits, isOpen, onClos
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         sendMessage(input);
+    };
+
+    const clearChat = () => {
+        setMessages([{
+            role: 'assistant',
+            content: COACH_PERSONAS[selectedPersona].greeting
+        }]);
+        localStorage.removeItem(`habitvision_chat_${selectedPersona}`);
+        localStorage.removeItem(`habitvision_last_greeted_${selectedPersona}`);
     };
 
     if (!isOpen) return null;
@@ -142,9 +190,18 @@ export const AICoachChat: React.FC<AICoachChatProps> = ({ habits, isOpen, onClos
                             )}
                         </div>
                     </div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full">
-                        <X size={20} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={clearChat}
+                            title="Clear chat"
+                            className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full">
+                            <X size={20} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Messages */}
@@ -170,10 +227,14 @@ export const AICoachChat: React.FC<AICoachChatProps> = ({ habits, isOpen, onClos
                         </div>
                     ))}
                     {isLoading && (
-                        <div className="flex justify-start">
-                            <div className="bg-gray-100 dark:bg-gray-800 px-4 py-3 rounded-2xl rounded-bl-md flex items-center gap-2">
-                                <Loader2 size={16} className="animate-spin text-gray-500" />
-                                <span className="text-sm text-gray-500">Thinking...</span>
+                        <div className="flex justify-start items-end gap-2">
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 border border-gray-200 dark:border-gray-600">
+                                <img src={COACH_PERSONAS[selectedPersona].avatar} alt="" className="w-full h-full object-cover scale-125 animate-pulse" />
+                            </div>
+                            <div className="bg-gray-100 dark:bg-gray-800 px-4 py-3 rounded-2xl rounded-bl-md flex items-center gap-1">
+                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                             </div>
                         </div>
                     )}
