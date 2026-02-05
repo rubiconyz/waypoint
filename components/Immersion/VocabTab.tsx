@@ -22,6 +22,8 @@ const getMasteryCategory = (mastery: number): MasteryFilter => {
     return 'known';
 };
 
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 interface VocabTabProps {
     words: SavedWord[];
     onDeleteWord: (id: string) => void;
@@ -75,7 +77,8 @@ export const VocabTab: React.FC<VocabTabProps> = ({ words, onDeleteWord, onUpdat
 
     const highlightWord = (text: string, word: string) => {
         if (!text || !word) return text;
-        const parts = text.split(new RegExp(`(${word})`, 'gi'));
+        const safeWord = escapeRegExp(word);
+        const parts = text.split(new RegExp(`(${safeWord})`, 'gi'));
         return (
             <span>
                 {parts.map((part, i) =>

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Brain, Sparkles, Loader2, ChevronDown, User, Trash2 } from 'lucide-react';
+import { X, Send, Brain, Sparkles, Loader2, ChevronDown, User, Trash2, BookOpen } from 'lucide-react';
 import { Habit } from '../types';
-import { chatWithHabitCoach, ChatMessage, CoachPersona, COACH_PERSONAS } from '../services/geminiService';
+import { chatWithHabitCoach, ChatMessage, CoachPersona, COACH_PERSONAS, extractMemoriesFromMessage } from '../services/geminiService';
 import { getLocalDateString } from '../utils/dateUtils';
 
 interface AICoachChatProps {
@@ -29,6 +29,20 @@ export const AICoachChat: React.FC<AICoachChatProps> = ({ habits, isOpen, onClos
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const hasGeneratedDailySummary = useRef(false);
+    const [memories, setMemories] = useState<string[]>([]);
+    const [isMemoriesOpen, setIsMemoriesOpen] = useState(false);
+
+    // Load memories on mount
+    useEffect(() => {
+        const saved = localStorage.getItem('habitvision_coach_memories');
+        if (saved) {
+            try {
+                setMemories(JSON.parse(saved));
+            } catch (e) {
+                console.error("Failed to parse memories", e);
+            }
+        }
+    }, []);
 
     // Load history when persona changes
     useEffect(() => {
@@ -108,8 +122,17 @@ export const AICoachChat: React.FC<AICoachChatProps> = ({ habits, isOpen, onClos
         setIsLoading(true);
 
         try {
-            const response = await chatWithHabitCoach(text.trim(), habits, messages, selectedPersona);
+            const response = await chatWithHabitCoach(text.trim(), habits, messages, selectedPersona, memories);
             setMessages(prev => [...prev, { role: 'assistant', content: response }]);
+
+            // Extract and save new memories (async, non-blocking)
+            extractMemoriesFromMessage(text.trim(), memories).then(newMemories => {
+                if (newMemories.length > 0) {
+                    const updated = [...memories, ...newMemories].slice(-20); // Keep last 20
+                    setMemories(updated);
+                    localStorage.setItem('habitvision_coach_memories', JSON.stringify(updated));
+                }
+            });
         } catch {
             setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, something went wrong. Try again?" }]);
         } finally {
@@ -191,6 +214,55 @@ export const AICoachChat: React.FC<AICoachChatProps> = ({ habits, isOpen, onClos
                         </div>
                     </div>
                     <div className="flex items-center gap-1">
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsMemoriesOpen(!isMemoriesOpen)}
+                                title="Coach memories"
+                                className={`transition-colors p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full ${memories.length > 0 ? 'text-blue-500' : 'text-gray-400'}`}
+                            >
+                                <BookOpen size={16} />
+                                {memories.length > 0 && (
+                                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-blue-500 text-white text-[9px] rounded-full flex items-center justify-center font-medium">
+                                        {memories.length}
+                                    </span>
+                                )}
+                            </button>
+                            {isMemoriesOpen && (
+                                <div className="absolute top-full right-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in z-50">
+                                    <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                                        <span className="font-semibold text-sm text-gray-900 dark:text-white">Coach Memories</span>
+                                        {memories.length > 0 && (
+                                            <button
+                                                onClick={() => {
+                                                    setMemories([]);
+                                                    localStorage.removeItem('habitvision_coach_memories');
+                                                    setIsMemoriesOpen(false);
+                                                }}
+                                                className="text-xs text-red-500 hover:underline"
+                                            >
+                                                Clear all
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="max-h-48 overflow-y-auto">
+                                        {memories.length === 0 ? (
+                                            <p className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                                                No memories yet. Tell me about yourself and I'll remember!
+                                            </p>
+                                        ) : (
+                                            <ul className="px-4 py-2 space-y-1.5">
+                                                {memories.map((m, i) => (
+                                                    <li key={i} className="text-sm text-gray-700 dark:text-gray-300 flex items-start gap-2">
+                                                        <span className="text-blue-500 mt-0.5">•</span>
+                                                        <span className="capitalize">{m}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                         <button
                             onClick={clearChat}
                             title="Clear chat"

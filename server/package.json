@@ -9,6 +9,7 @@
         "dev": "node --watch index.js"
     },
     "dependencies": {
+        "@google/genai": "^1.37.0",
         "@distube/ytdl-core": "^4.16.12",
         "assemblyai": "^4.22.1",
         "cors": "^2.8.5",

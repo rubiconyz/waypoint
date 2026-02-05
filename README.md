@@ -15,6 +15,7 @@ View your app in AI Studio: https://ai.studio/apps/temp/2
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Set `VITE_GEMINI_PROXY_URL` in `.env.local` to your backend proxy URL (e.g. `http://localhost:3001/api/gemini`)
+3. Set `GEMINI_API_KEY` in `/Users/bakhrom/Downloads/habitvision/server/.env` for the proxy
+4. Run the app:
    `npm run dev`

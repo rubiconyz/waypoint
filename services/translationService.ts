@@ -1,5 +1,19 @@
 
 const API_URL = 'https://api.mymemory.translated.net/get';
+const normalizeBase = (base: string) => base.replace(/\/+$/, '');
+const resolveApiBaseUrl = () => {
+    const envBase = import.meta.env.VITE_API_BASE_URL as string | undefined;
+    if (envBase) return normalizeBase(envBase);
+    if (import.meta.env.DEV) return 'http://localhost:3001';
+    if (typeof window !== 'undefined') return window.location.origin;
+    return '';
+};
+
+const API_BASE_URL = (() => {
+    const base = resolveApiBaseUrl();
+    if (!base) return '/api';
+    return base.endsWith('/api') ? base : `${base}/api`;
+})();
 
 interface TranslationResponse {
     responseData: {
@@ -24,7 +38,7 @@ export const translateWord = async (
                 // 'ende' means En<->De.
                 const langPair = `${otherLang}de`; // e.g. 'ende'
 
-                const res = await fetch(`http://localhost:3001/api/translate/leo?word=${encodeURIComponent(text)}&lang=${langPair}`);
+                const res = await fetch(`${API_BASE_URL}/translate/leo?word=${encodeURIComponent(text)}&lang=${langPair}`);
                 const data = await res.json();
                 if (data && data.translation) {
                     return data.translation;

@@ -5,7 +5,20 @@ import { TranscriptSegment } from '../types';
  * Delegates complex processing to the backend API to keep secrets safe and handle audio extraction.
  */
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const normalizeBase = (base: string) => base.replace(/\/+$/, '');
+const resolveApiBaseUrl = () => {
+    const envBase = import.meta.env.VITE_API_BASE_URL as string | undefined;
+    if (envBase) return normalizeBase(envBase);
+    if (import.meta.env.DEV) return 'http://localhost:3001';
+    if (typeof window !== 'undefined') return window.location.origin;
+    return '';
+};
+
+const API_BASE_URL = (() => {
+    const base = resolveApiBaseUrl();
+    if (!base) return '/api';
+    return base.endsWith('/api') ? base : `${base}/api`;
+})();
 
 /**
  * Request audio-based speaker diarization for a YouTube video

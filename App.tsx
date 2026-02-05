@@ -217,6 +217,7 @@ const calculatePerfectDayStreak = (habits: Habit[]) => {
 
 const App: React.FC = () => {
   const { user, loading: authLoading, logout } = useAuth();
+  const [isFirestoreReady, setIsFirestoreReady] = useState(false);
   const [showFocusMode, setShowFocusMode] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showLanding, setShowLanding] = useState(() => {
@@ -709,7 +710,9 @@ const App: React.FC = () => {
     let hasChanges = false;
 
     const updated = challenges.map(challenge => {
-      const habit = habits.find(h => h.id === challenge.habitId);
+      const habit = challenge.habitId
+        ? habits.find(h => h.id === challenge.habitId)
+        : habits.find(h => h.title === challenge.habitTitle);
       if (!habit) return challenge;
 
       const userIdx = challenge.participants.findIndex(p => p.odId === currentUserId);
@@ -748,7 +751,7 @@ const App: React.FC = () => {
         updated.forEach(c => saveChallengeToFirestore(c));
       }
     }
-  }, [habits, user?.uid]);
+  }, [habits, challenges, user?.uid]);
 
   // 2. Initial Tour (Tracker + Coins)
   useEffect(() => {
@@ -887,8 +890,13 @@ const App: React.FC = () => {
 
   // Firebase Sync - Load data when user logs in
   useEffect(() => {
-    if (!user || authLoading) return;
+    if (!user || authLoading) {
+      setIsFirestoreReady(false);
+      return;
+    }
 
+    setIsFirestoreReady(false);
+    let cancelled = false;
     const loadFromFirestore = async () => {
       try {
         // Load all data from Firestore
@@ -925,15 +933,20 @@ const App: React.FC = () => {
         }
       } catch (error) {
         console.error('Error syncing with Firestore:', error);
+      } finally {
+        if (!cancelled) setIsFirestoreReady(true);
       }
     };
 
     loadFromFirestore();
+    return () => {
+      cancelled = true;
+    };
   }, [user?.uid, authLoading]);
 
   // Save to Firestore when data changes (if user is logged in)
   useEffect(() => {
-    if (!user || authLoading) return;
+    if (!user || authLoading || !isFirestoreReady) return;
 
     const saveToFirestore = async () => {
       try {
@@ -944,10 +957,10 @@ const App: React.FC = () => {
     };
 
     saveToFirestore();
-  }, [habits, user?.uid, authLoading]);
+  }, [habits, user?.uid, authLoading, isFirestoreReady]);
 
   useEffect(() => {
-    if (!user || authLoading) return;
+    if (!user || authLoading || !isFirestoreReady) return;
 
     const saveBadgesToFirestore = async () => {
       try {
@@ -963,7 +976,7 @@ const App: React.FC = () => {
     };
 
     saveBadgesToFirestore();
-  }, [badgeProgress, totalHabitsCreated, coins, unlockedCheckpoints, user?.uid, authLoading]);
+  }, [badgeProgress, totalHabitsCreated, coins, unlockedCheckpoints, user?.uid, authLoading, isFirestoreReady]);
 
 
 
@@ -1111,7 +1124,7 @@ const App: React.FC = () => {
       if (challenges.length > 0 && user) {
         // Find matching active challenges
         const linkedChallenges = challenges.filter(c =>
-          c.habitTitle === habit.title &&
+          (c.habitId ? c.habitId === habit.id : c.habitTitle === habit.title) &&
           isChallengeActive(c) &&
           c.participants.some(p => p.odId === user.uid)
         );

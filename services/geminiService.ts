@@ -1,6 +1,42 @@
 import { GoogleGenAI } from "@google/genai";
 import { ImageSize, AspectRatio, AIStudioWindow, TranscriptSegment, Habit, SavedWord, RecentVideo } from "../types";
 
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_API_KEY;
+const GEMINI_PROXY_URL = import.meta.env.VITE_GEMINI_PROXY_URL as string | undefined;
+
+type GeminiClient = {
+  models: {
+    generateContent: (params: any) => Promise<any>;
+  };
+};
+
+const getGeminiClient = (): GeminiClient => {
+  if (GEMINI_PROXY_URL) {
+    return {
+      models: {
+        generateContent: async (params: any) => {
+          const response = await fetch(GEMINI_PROXY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params)
+          });
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Gemini proxy error (${response.status}): ${errorText}`);
+          }
+          return response.json();
+        }
+      }
+    };
+  }
+
+  if (!GEMINI_API_KEY) {
+    throw new Error('Missing Gemini API configuration. Set VITE_GEMINI_PROXY_URL or VITE_GEMINI_API_KEY.');
+  }
+
+  return new GoogleGenAI({ apiKey: GEMINI_API_KEY }) as unknown as GeminiClient;
+};
+
 // Helper to handle the specific API key selection flow for Pro models
 async function ensureApiKeySelected(): Promise<void> {
   const win = window as unknown as AIStudioWindow;
@@ -18,9 +54,11 @@ export const generateVisionBoardImage = async (
   ratio: AspectRatio
 ): Promise<string> => {
   try {
-    await ensureApiKeySelected();
+    if (!GEMINI_PROXY_URL) {
+      await ensureApiKeySelected();
+    }
 
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+    const ai = getGeminiClient();
 
     // Using Nano Banana Pro / Gemini 3 Pro Image Preview as requested
     const response = await ai.models.generateContent({
@@ -59,7 +97,7 @@ export const refineTranscript = async (rawText: string, language: string): Promi
   try {
     // await ensureApiKeySelected(); // Optional depending on env
 
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+    const ai = getGeminiClient();
 
     const prompt = `
       You are an expert language tutor. I have a raw, auto-generated transcript of a video in ${language}. 
@@ -106,7 +144,7 @@ export const getWordTranslation = async (
   nativeLanguage: string
 ): Promise<{ translation: string; definition: string; partOfSpeech: string } | null> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+    const ai = getGeminiClient();
 
     const prompt = `
         You are a helpful language tutor. 
@@ -146,7 +184,7 @@ export const translateSentence = async (
   nativeLanguage: string
 ): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+    const ai = getGeminiClient();
 
     const prompt = `
       Translate the following ${targetLanguage} sentence to ${nativeLanguage}:
@@ -176,7 +214,7 @@ export const getWordLemma = async (
   targetLanguage: string
 ): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+    const ai = getGeminiClient();
 
     const prompt = `
         You are a linguistics expert.
@@ -217,7 +255,7 @@ export const getGrammarExplanation = async (
   nativeLanguage: string
 ): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+    const ai = getGeminiClient();
 
     // Use fallback context if empty
     const safeContext = context || `a sentence containing the word ${word}`;
@@ -261,7 +299,7 @@ export const getDictionaryDefinitions = async (
   nativeLanguage: string
 ): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+    const ai = getGeminiClient();
 
     const prompt = `
       Give a quick dictionary entry for "${word}" (${targetLanguage}).
@@ -309,7 +347,7 @@ export const getElaborateDefinition = async (
   nativeLanguage: string
 ): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+    const ai = getGeminiClient();
 
     // Use fallback context if empty
     const safeContext = context || `a sentence with the word ${word}`;
@@ -356,7 +394,7 @@ export const refineTranscriptSegments = async (
   let lastSpeaker = "Speaker 1"; // Track speaker across chunks
 
   try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+    const ai = getGeminiClient();
 
     // Process in chunks to avoid context limits and reliability issues
     for (let i = 0; i < segments.length; i += CHUNK_SIZE) {
@@ -462,7 +500,7 @@ export const rewriteArticleForCEFR = async (
 ): Promise<string> => {
   try {
     await ensureApiKeySelected();
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+    const ai = getGeminiClient();
 
     const prompt = `
       You are a professional language teacher rewriting news content for students.
@@ -509,7 +547,7 @@ export const extractVocabulary = async (
 ): Promise<Array<{ word: string; translation: string; level: string }>> => {
   try {
     await ensureApiKeySelected();
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+    const ai = getGeminiClient();
 
     const prompt = `
       Extract ${limit} key vocabulary words from this text that are useful for a language learner.
@@ -553,7 +591,7 @@ export const generateComprehensionQuestions = async (
 ): Promise<Array<{ question: string; answer: string }>> => {
   try {
     await ensureApiKeySelected();
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+    const ai = getGeminiClient();
 
     const prompt = `
       Generate ${count} comprehension questions for this text.
@@ -602,7 +640,7 @@ export const getWeeklySummary = async (
   habits: Habit[]
 ): Promise<WeeklySummary | null> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+    const ai = getGeminiClient();
 
     // Build habit summary data
     const habitData = habits.map(h => {
@@ -676,7 +714,7 @@ export const getHabitCoachInsights = async (
   habits: Habit[]
 ): Promise<HabitCoachInsights | null> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+    const ai = getGeminiClient();
 
     // Build detailed habit data for analysis
     const habitData = habits.map(h => {
@@ -759,7 +797,7 @@ export const getContentRecommendations = async (
   recentVideos: RecentVideo[]
 ): Promise<ContentRecommendation[]> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+    const ai = getGeminiClient();
 
     // Analyze vocabulary level
     const wordSample = savedWords.slice(0, 30).map(w => ({
@@ -926,10 +964,11 @@ export const chatWithHabitCoach = async (
   userMessage: string,
   habits: Habit[],
   chatHistory: ChatMessage[],
-  persona: CoachPersona = 'waypoint'
+  persona: CoachPersona = 'waypoint',
+  memories: string[] = []
 ): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+    const ai = getGeminiClient();
     const selectedPersona = COACH_PERSONAS[persona];
 
     // Build habit context
@@ -959,8 +998,14 @@ export const chatWithHabitCoach = async (
       `${m.role === 'user' ? 'User' : 'Coach'}: ${m.content}`
     ).join('\n');
 
+    // Build memories context
+    const memoriesText = memories.length > 0
+      ? `\nTHINGS YOU REMEMBER ABOUT THIS USER:\n${memories.map(m => `- ${m}`).join('\n')}\n(Reference these naturally when relevant. Don't list them back unless specifically asked.)`
+      : '';
+
     const prompt = `
 ${selectedPersona.prompt}
+${memoriesText}
 
 USER'S HABITS DATA:
 ${JSON.stringify(habitContext, null, 2)}
@@ -994,5 +1039,56 @@ Respond as your persona:`;
   } catch (error) {
     console.error("Error in AI Coach chat:", error);
     return "Sorry, I couldn't connect. Please try again in a moment.";
+  }
+};
+
+// Extract memories from user messages
+export const extractMemoriesFromMessage = async (
+  userMessage: string,
+  existingMemories: string[]
+): Promise<string[]> => {
+  try {
+    const ai = getGeminiClient();
+
+    const prompt = `
+Analyze this user message and extract any NEW personal facts worth remembering for future conversations.
+
+EXISTING MEMORIES (don't duplicate these):
+${existingMemories.map(m => `- ${m}`).join('\n') || '(none)'}
+
+USER MESSAGE:
+"${userMessage}"
+
+Extract facts like:
+- Personal goals ("training for a marathon")
+- Physical limitations ("has bad knee")
+- Life circumstances ("works night shifts", "has two kids")
+- Preferences ("prefers morning workouts")
+
+Rules:
+- Only extract CONCRETE, SPECIFIC facts
+- Ignore generic statements or questions
+- Return empty array if nothing worth remembering
+- Keep each fact under 10 words
+- Don't duplicate existing memories
+
+Return ONLY a JSON array of strings. Example: ["training for first marathon", "works from home"]
+If nothing to extract, return: []`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts: [{ text: prompt }] }
+    });
+
+    if (response.candidates && response.candidates[0].content && response.candidates[0].content.parts) {
+      const text = response.candidates[0].content.parts[0].text || "[]";
+      const cleanText = text.replace(/```json\n|\n```/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleanText);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+    return [];
+  } catch (error) {
+    console.error("Error extracting memories:", error);
+    return [];
   }
 };

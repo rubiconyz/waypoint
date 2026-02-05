@@ -153,6 +153,7 @@ export const ImmersionTab: React.FC<ImmersionTabProps> = ({
     // Player & Sync State
     const playerRef = useRef<any>(null);
     const [activeSegmentIndex, setActiveSegmentIndex] = useState<number>(-1);
+    const activeSegmentIndexRef = useRef<number>(-1);
     const [videoTime, setVideoTime] = useState<number>(0); // Current video playback time for word-level underline
     const activeSegmentRef = useRef<HTMLDivElement>(null);
 
@@ -179,20 +180,22 @@ export const ImmersionTab: React.FC<ImmersionTabProps> = ({
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
             if (event.source !== window) return;
-            if (event.data.source === 'HABIT_VISION_EXT') {
-                if (event.data.type === 'EXTENSION_READY') {
-                    setHasExtension(true);
-                    console.log("Extension detected in React!");
-                } else if (event.data.type === 'EXTENSION_IMPORT_DATA') {
-                    console.log("Received IMPORT data from extension:", event.data.payload);
-                    const { videoId, rawText, segments: importedSegments } = event.data.payload;
-                    if (videoId) setVideoUrl(`https://www.youtube.com/watch?v=${videoId}`);
+            if (event.origin !== window.location.origin) return;
+            if (!event.data || typeof event.data !== 'object') return;
+            if (event.data.source !== 'HABIT_VISION_EXT') return;
 
-                    if (importedSegments && importedSegments.length > 0) {
-                        setSegments(importedSegments);
-                    } else if (rawText) {
-                        setSegments([{ text: rawText, start: 0, duration: 9999 }]);
-                    }
+            if (event.data.type === 'EXTENSION_READY') {
+                setHasExtension(true);
+                console.log("Extension detected in React!");
+            } else if (event.data.type === 'EXTENSION_IMPORT_DATA') {
+                console.log("Received IMPORT data from extension:", event.data.payload);
+                const { videoId, rawText, segments: importedSegments } = event.data.payload || {};
+                if (videoId) setVideoUrl(`https://www.youtube.com/watch?v=${videoId}`);
+
+                if (importedSegments && importedSegments.length > 0) {
+                    setSegments(importedSegments);
+                } else if (rawText) {
+                    setSegments([{ text: rawText, start: 0, duration: 9999 }]);
                 }
             }
         };
@@ -200,6 +203,10 @@ export const ImmersionTab: React.FC<ImmersionTabProps> = ({
         window.addEventListener('message', handleMessage);
         return () => window.removeEventListener('message', handleMessage);
     }, []);
+
+    useEffect(() => {
+        activeSegmentIndexRef.current = activeSegmentIndex;
+    }, [activeSegmentIndex]);
 
     // Sync Loop with segment looping support
     useEffect(() => {
@@ -209,21 +216,23 @@ export const ImmersionTab: React.FC<ImmersionTabProps> = ({
                 setVideoTime(currentTime); // Update video time for word-level underline
                 const index = segments.findIndex(s => currentTime >= s.start && currentTime < (s.start + s.duration));
 
+                const currentActive = activeSegmentIndexRef.current;
                 // Loop segment if enabled
-                if (isLooping && activeSegmentIndex !== -1 && segments[activeSegmentIndex]) {
-                    const seg = segments[activeSegmentIndex];
+                if (isLooping && currentActive !== -1 && segments[currentActive]) {
+                    const seg = segments[currentActive];
                     if (currentTime >= (seg.start + seg.duration - 0.1)) {
                         playerRef.current.seekTo(seg.start, true);
                     }
                 }
 
-                if (index !== -1 && index !== activeSegmentIndex) {
+                if (index !== -1 && index !== currentActive) {
+                    activeSegmentIndexRef.current = index;
                     setActiveSegmentIndex(index);
                 }
             }
         }, 250);
         return () => clearInterval(interval);
-    }, [segments, activeSegmentIndex, isLooping]);
+    }, [segments, isLooping]);
 
     // Time Logging Interval
     useEffect(() => {

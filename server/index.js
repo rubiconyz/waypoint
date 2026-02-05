@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import puppeteer from 'puppeteer';
 import { AssemblyAI } from 'assemblyai';
+import { GoogleGenAI } from '@google/genai';
 import ytdl from '@distube/ytdl-core';
 import dotenv from 'dotenv';
 dotenv.config(); // Load variables from .env file
@@ -24,6 +25,22 @@ app.get('/api/news', async (req, res) => {
     } catch (error) {
         console.error('News API Error:', error);
         res.status(500).json({ error: 'Failed to fetch news' });
+    }
+});
+
+// Gemini Proxy Endpoint
+app.post('/api/gemini', async (req, res) => {
+    if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: 'GEMINI_API_KEY not configured on server' });
+    }
+
+    try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const result = await ai.models.generateContent(req.body);
+        res.json(result);
+    } catch (error) {
+        console.error('Gemini Proxy Error:', error);
+        res.status(500).json({ error: 'Gemini request failed', details: error.message });
     }
 });
 
