@@ -13,7 +13,7 @@ import { MountainClimber } from './components/MountainClimber';
 import { MuscleRecoveryTab } from './components/MuscleRecoveryTab';
 import { AuthModal } from './components/AuthModal';
 import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, User, Menu, Command, Plus, Coins, Users, Cloud, Languages, BookOpen, Activity, MessageCircle } from 'lucide-react';
-import { Habit, HabitFrequency, Badge, BadgeProgress, Challenge, SavedWord, RecentVideo, DailyUsageLog, WorkoutLog, WordMasteryLevel } from './types';
+import { Habit, HabitFrequency, Badge, BadgeProgress, Challenge, SavedWord, RecentVideo, DailyUsageLog, WorkoutLog, WordMasteryLevel, TrainingProgramState } from './types';
 import { checkBadgeUnlocks } from './badges';
 import { initialHabits, initialSavedWords } from './data';
 import confetti from 'canvas-confetti';
@@ -215,6 +215,88 @@ const calculatePerfectDayStreak = (habits: Habit[]) => {
   return maxStreak;
 };
 
+const isHabitDueOnDate = (habit: Habit, date: Date): boolean => {
+  if (habit.createdAt) {
+    const createdAt = new Date(habit.createdAt);
+    createdAt.setHours(0, 0, 0, 0);
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+    if (checkDate < createdAt) return false;
+  }
+  if (habit.frequency.type === 'daily') return true;
+  if (habit.frequency.type === 'custom') return habit.frequency.days.includes(date.getDay());
+  return true;
+};
+
+const getStatusPoints = (status: Habit['history'][string] | undefined): number => {
+  if (status === 'completed' || status === 'skipped') return 1;
+  return 0;
+};
+
+const computeDayScore = (habits: Habit[], date: Date): { due: number; points: number; completion: number } => {
+  const dateStr = getLocalDateString(date);
+  const dueHabits = habits.filter(h => isHabitDueOnDate(h, date));
+  const points = dueHabits.reduce((sum, habit) => sum + getStatusPoints(habit.history[dateStr]), 0);
+  const due = dueHabits.length;
+  const completion = due > 0 ? points / due : 0;
+  return { due, points, completion };
+};
+
+const getGhostProfile = (habits: Habit[]) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const lastWeek = new Date(today);
+  lastWeek.setDate(today.getDate() - 7);
+
+  const todayScore = computeDayScore(habits, today);
+  const lastWeekScore = computeDayScore(habits, lastWeek);
+
+  const hasDueToday = todayScore.due > 0;
+  const hasLastWeekData = lastWeekScore.due > 0;
+  const todayPoints = Math.min(todayScore.due, Math.round(todayScore.points));
+  const lastWeekPoints = Math.min(lastWeekScore.due, Math.round(lastWeekScore.points));
+  const todayPercent = hasDueToday ? Math.round((todayPoints / todayScore.due) * 100) : 0;
+  const lastWeekPercent = hasLastWeekData ? Math.round((lastWeekPoints / lastWeekScore.due) * 100) : 0;
+
+  const deltaPercent = hasDueToday && hasLastWeekData ? todayPercent - lastWeekPercent : 0;
+  const comparisonDay = lastWeek.toLocaleDateString('en-US', { weekday: 'long' });
+
+  const statusLabel = !hasDueToday
+    ? 'Rest day'
+    : !hasLastWeekData
+      ? 'Baseline day'
+      : deltaPercent > 5
+        ? 'Ahead of last week'
+        : deltaPercent < -5
+          ? 'Behind last week'
+          : 'On par with last week';
+
+  const reason = !hasDueToday
+    ? 'No habits are due today.'
+    : !hasLastWeekData
+      ? `No comparable data from last ${comparisonDay}. Today sets your baseline.`
+      : deltaPercent > 5
+        ? `You are ${Math.abs(deltaPercent)}% ahead of last ${comparisonDay}.`
+        : deltaPercent < -5
+          ? `You are ${Math.abs(deltaPercent)}% behind last ${comparisonDay}.`
+          : `You are matching last ${comparisonDay}.`;
+
+  return {
+    todayPoints,
+    todayDue: todayScore.due,
+    todayPercent,
+    lastWeekPoints,
+    lastWeekDue: lastWeekScore.due,
+    lastWeekPercent,
+    deltaPercent,
+    comparisonDay,
+    statusLabel,
+    reason,
+    hasDueToday,
+    hasLastWeekData
+  };
+};
+
 const App: React.FC = () => {
   const { user, loading: authLoading, logout } = useAuth();
   const [isFirestoreReady, setIsFirestoreReady] = useState(false);
@@ -307,6 +389,17 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem(WORKOUT_LOGS_KEY, JSON.stringify(workoutLogs));
   }, [workoutLogs]);
+
+  // Training Program State
+  const TRAINING_PROGRAM_KEY = 'habitvision-training-program';
+  const [trainingProgram, setTrainingProgram] = useState<TrainingProgramState>(() => {
+    const saved = localStorage.getItem(TRAINING_PROGRAM_KEY);
+    return saved ? JSON.parse(saved) : { selectedProgramId: null, currentDayIndex: 0, programStartDate: '' };
+  });
+
+  useEffect(() => {
+    localStorage.setItem(TRAINING_PROGRAM_KEY, JSON.stringify(trainingProgram));
+  }, [trainingProgram]);
 
   const handleAddWorkout = (log: Omit<WorkoutLog, 'id' | 'createdAt'>) => {
     const newLog: WorkoutLog = {
@@ -1249,6 +1342,7 @@ const App: React.FC = () => {
 
   const completedCount = dueHabitsToday.filter(h => h.history[todayStr] === 'completed' || h.history[todayStr] === 'skipped').length;
   const progressPercentage = dueHabitsToday.length > 0 ? Math.round((completedCount / dueHabitsToday.length) * 100) : 0;
+  const ghostProfile = useMemo(() => getGhostProfile(habits), [habits]);
 
   // Calculate Perfect Streak
   const perfectStreak = useMemo(() => calculatePerfectDayStreak(habits), [habits]);
@@ -1543,8 +1637,20 @@ const App: React.FC = () => {
                 <div className="w-full bg-black/20 rounded-full h-2 mt-2 relative z-10">
                   <div className="bg-white rounded-full h-2 transition-all duration-500" style={{ width: `${progressPercentage}%` }}></div>
                 </div>
-              </div>
 
+                {/* Daily Rival - Compact comparison */}
+                {ghostProfile.hasDueToday && ghostProfile.hasLastWeekData && (
+                  <div className="mt-4 pt-3 border-t border-white/20 relative z-10">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="opacity-80">vs last {ghostProfile.comparisonDay}</span>
+                      <span className={`font-semibold flex items-center gap-1 ${ghostProfile.deltaPercent >= 0 ? 'text-green-200' : 'text-orange-200'}`}>
+                        {ghostProfile.deltaPercent >= 0 ? '↑' : '↓'} {Math.abs(ghostProfile.deltaPercent)}%
+                        <span className="opacity-70 font-normal">({ghostProfile.lastWeekPercent}%)</span>
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
 
 
               <div className={`rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm transition-colors ${(activeTab === 'tracker' && wallpaper !== 'none')
@@ -1734,6 +1840,8 @@ const App: React.FC = () => {
                 onAddWorkout={handleAddWorkout}
                 onDeleteWorkout={handleDeleteWorkout}
                 onUpdateWorkout={handleUpdateWorkout}
+                trainingProgram={trainingProgram}
+                onProgramChange={setTrainingProgram}
               />
             )}
           </>

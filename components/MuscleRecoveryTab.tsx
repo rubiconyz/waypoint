@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { Dumbbell, Plus, Clock, Calendar, Trash2, ChevronDown, ChevronUp, Activity, Pencil, X } from 'lucide-react';
+import { Dumbbell, Plus, Clock, Calendar, Trash2, ChevronDown, ChevronUp, Activity, Pencil, X, Settings, Play, CheckCircle2 } from 'lucide-react';
 import { MuscleBodySVG } from './MuscleBodySVG';
 import { RecoveryCalendar } from './RecoveryCalendar';
 import { MUSCLE_GROUPS, getRecoveryColor, getRecoveryStatus, getMuscleRecoveryPercentage, getHoursUntilRecovered } from '../muscleRecoveryData';
-import { WorkoutLog, WorkoutIntensity } from '../types';
+import { WorkoutLog, WorkoutIntensity, TrainingProgramState } from '../types';
+import { TRAINING_PROGRAMS, getTodaysProgramDay, getMuscleNames, getProgram } from '../trainingPrograms';
 
 interface MuscleRecoveryTabProps {
     workoutLogs: WorkoutLog[];
     onAddWorkout: (log: Omit<WorkoutLog, 'id' | 'createdAt'>) => void;
     onDeleteWorkout: (id: string) => void;
     onUpdateWorkout: (log: WorkoutLog) => void;
+    trainingProgram: TrainingProgramState;
+    onProgramChange: (program: TrainingProgramState) => void;
 }
 
 export const MuscleRecoveryTab: React.FC<MuscleRecoveryTabProps> = ({
@@ -17,6 +20,8 @@ export const MuscleRecoveryTab: React.FC<MuscleRecoveryTabProps> = ({
     onAddWorkout,
     onDeleteWorkout,
     onUpdateWorkout,
+    trainingProgram,
+    onProgramChange,
 }) => {
     const [isLogging, setIsLogging] = useState(false);
     const [editingLogId, setEditingLogId] = useState<string | null>(null);
@@ -25,6 +30,13 @@ export const MuscleRecoveryTab: React.FC<MuscleRecoveryTabProps> = ({
     const [notes, setNotes] = useState('');
     const [workoutDate, setWorkoutDate] = useState(new Date().toISOString().split('T')[0]);
     const [showHistory, setShowHistory] = useState(false);
+    const [showProgramSelector, setShowProgramSelector] = useState(false);
+
+    // Get today's program day - use currentDayIndex for user selection
+    const currentProgram = trainingProgram.selectedProgramId ? getProgram(trainingProgram.selectedProgramId) : null;
+    const todaysDay = currentProgram
+        ? currentProgram.days[trainingProgram.currentDayIndex % currentProgram.days.length]
+        : null;
 
     const handleMuscleClick = (muscleId: string) => {
         if (!isLogging) return;
@@ -135,6 +147,183 @@ export const MuscleRecoveryTab: React.FC<MuscleRecoveryTabProps> = ({
                     )}
                 </button>
             </div>
+
+            {/* Today's Workout Section */}
+            {currentProgram && (
+                <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-5 border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <span className="text-2xl">{currentProgram.icon}</span>
+                            <div>
+                                <h3 className="font-bold text-lg text-gray-800 dark:text-white">{currentProgram.name}</h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">{currentProgram.daysPerWeek} days/week</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setShowProgramSelector(true)}
+                            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-600 dark:text-gray-400"
+                            title="Change program"
+                        >
+                            <Settings size={18} />
+                        </button>
+                    </div>
+
+                    {/* Day Picker Tabs */}
+                    <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+                        {currentProgram.days.filter((d, i, arr) => {
+                            // Remove duplicate rest days for cleaner UI
+                            if (d.isRestDay) {
+                                return arr.findIndex(x => x.isRestDay) === i;
+                            }
+                            return true;
+                        }).map((day, index) => {
+                            const isSelected = todaysDay?.name === day.name;
+                            return (
+                                <button
+                                    key={`${day.name}-${index}`}
+                                    onClick={() => {
+                                        const dayIndex = currentProgram.days.findIndex(d => d.name === day.name);
+                                        if (dayIndex !== -1) {
+                                            onProgramChange({
+                                                ...trainingProgram,
+                                                currentDayIndex: dayIndex,
+                                            });
+                                        }
+                                    }}
+                                    className={`px-4 py-2 rounded-xl font-medium text-sm whitespace-nowrap transition-all ${isSelected
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600'
+                                        }`}
+                                >
+                                    {day.isRestDay ? '😴 Rest' : day.name}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Selected Day Content */}
+                    {todaysDay?.isRestDay ? (
+                        <div className="bg-white dark:bg-gray-900 rounded-xl p-4 text-center border border-gray-200 dark:border-gray-700">
+                            <span className="text-3xl mb-2 block">😴</span>
+                            <p className="font-semibold text-gray-800 dark:text-white">Rest Day</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Recovery is just as important as training!</p>
+                        </div>
+                    ) : todaysDay ? (
+                        <>
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                {todaysDay.muscles.map(muscleId => {
+                                    const recoveryPercent = getMuscleRecoveryPercentage(muscleId, workoutLogs);
+                                    const isReady = recoveryPercent >= 100;
+                                    const muscle = MUSCLE_GROUPS.find(m => m.id === muscleId);
+                                    return (
+                                        <div
+                                            key={muscleId}
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${isReady
+                                                ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+                                                : 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300'
+                                                }`}
+                                        >
+                                            {isReady ? <CheckCircle2 size={14} /> : <Clock size={14} />}
+                                            {muscle?.name}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setSelectedMuscles(todaysDay.muscles);
+                                    setIsLogging(true);
+                                }}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
+                            >
+                                <Play size={18} fill="currentColor" />
+                                Start {todaysDay.name} Workout
+                            </button>
+                        </>
+                    ) : null}
+                </div>
+            )}
+
+            {/* Program Selector Modal */}
+            {showProgramSelector && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowProgramSelector(false)}>
+                    <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-gray-800 dark:text-white">Choose Training Program</h3>
+                            <button onClick={() => setShowProgramSelector(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-3">
+                            {/* No program option */}
+                            <button
+                                onClick={() => {
+                                    onProgramChange({ selectedProgramId: null, currentDayIndex: 0, programStartDate: '' });
+                                    setShowProgramSelector(false);
+                                }}
+                                className={`w-full p-4 rounded-xl border-2 text-left transition-all ${!trainingProgram.selectedProgramId
+                                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                                    }`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <span className="text-2xl">🎯</span>
+                                    <div>
+                                        <p className="font-semibold text-gray-800 dark:text-white">No Program</p>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">Train freely without a schedule</p>
+                                    </div>
+                                </div>
+                            </button>
+
+                            {TRAINING_PROGRAMS.map(program => (
+                                <button
+                                    key={program.id}
+                                    onClick={() => {
+                                        onProgramChange({
+                                            selectedProgramId: program.id,
+                                            currentDayIndex: 0,
+                                            programStartDate: new Date().toISOString().split('T')[0],
+                                        });
+                                        setShowProgramSelector(false);
+                                    }}
+                                    className={`w-full p-4 rounded-xl border-2 text-left transition-all ${trainingProgram.selectedProgramId === program.id
+                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-2xl">{program.icon}</span>
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-semibold text-gray-800 dark:text-white">{program.name}</p>
+                                                <span className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-600 dark:text-gray-400">
+                                                    {program.daysPerWeek}x/week
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">{program.description}</p>
+                                        </div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* No program CTA */}
+            {!currentProgram && (
+                <button
+                    onClick={() => setShowProgramSelector(true)}
+                    className="w-full p-4 bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500 transition-colors group"
+                >
+                    <div className="flex items-center justify-center gap-3 text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                        <Dumbbell size={24} />
+                        <span className="font-semibold">Choose a Training Program</span>
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">PPL, Bro Split, Upper/Lower & more</p>
+                </button>
+            )}
 
             {/* Hero Stats Pills */}
             <div className="flex flex-wrap gap-3 justify-center">

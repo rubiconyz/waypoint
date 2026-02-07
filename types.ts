@@ -230,6 +230,13 @@ export interface MuscleRecoveryState {
   lastUpdated: string;
 }
 
+// Training Program State
+export interface TrainingProgramState {
+  selectedProgramId: string | null;
+  currentDayIndex: number;
+  programStartDate: string; // ISO date when program was started
+}
+
 // Daily usage logs for immersion time tracking
 export interface DailyUsageLog {
   [date: string]: number; // date (YYYY-MM-DD) -> seconds
