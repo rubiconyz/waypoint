@@ -93,7 +93,7 @@ export const MountainClimber: React.FC<MountainClimberProps> = ({
         <div className="max-w-4xl mx-auto space-y-6">
             {/* Header / Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 flex items-center justify-between relative group">
+                <div className="bg-white dark:bg-[#0F141D] p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-[#1F2733] flex items-center justify-between relative group">
                     <div>
                         <h2 className="text-gray-500 dark:text-gray-400 text-sm font-medium uppercase tracking-wide flex items-center gap-2">
                             Current Altitude
@@ -102,18 +102,18 @@ export const MountainClimber: React.FC<MountainClimberProps> = ({
                             {currentCheckpoint.altitude}
                             <span className="text-sm font-normal text-gray-500">m</span>
                         </div>
-                        <div className="text-indigo-600 dark:text-indigo-400 text-sm font-medium mt-1">
+                        <div className="text-blue-600 dark:text-blue-400 text-sm font-medium mt-1">
                             {currentCheckpoint.name}
                         </div>
                     </div>
                     <div className="flex flex-col gap-2">
-                        <div className="bg-indigo-50 dark:bg-indigo-900/30 p-3 rounded-xl">
-                            <Mountain className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                        <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-xl">
+                            <Mountain className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                         </div>
                         {onShowGuide && (
                             <button
                                 onClick={onShowGuide}
-                                className="absolute top-4 right-4 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 opacity-100 transition-all p-1"
+                                className="absolute top-4 right-4 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 opacity-100 transition-all p-1"
                                 title="Show Guide"
                             >
                                 <HelpCircle size={18} />
@@ -122,7 +122,7 @@ export const MountainClimber: React.FC<MountainClimberProps> = ({
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 flex items-center justify-between">
+                <div className="bg-white dark:bg-[#0F141D] p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-[#1F2733] flex items-center justify-between">
                     <div>
                         <h2 className="text-gray-500 dark:text-gray-400 text-sm font-medium uppercase tracking-wide">Available Funds</h2>
                         <div className="text-3xl font-bold text-gray-900 dark:text-white mt-1 flex items-baseline gap-1">
@@ -140,7 +140,7 @@ export const MountainClimber: React.FC<MountainClimberProps> = ({
             </div>
 
             {/* Main Visual Area */}
-            <div className="relative w-full bg-gray-900 rounded-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-gray-800">
+            <div className="relative w-full bg-gray-900 rounded-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-[#1F2733]">
                 {/* Background Video (Acts as both static bg and transition) */}
                 <video
                     ref={videoRef}
@@ -156,10 +156,10 @@ export const MountainClimber: React.FC<MountainClimberProps> = ({
 
             {/* Next Checkpoint / Unlock Section */}
             {nextCheckpoint ? (
-                <div id="unlock-card" className="mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-1 shadow-lg transform transition-all hover:scale-[1.01]">
-                    <div className="bg-white dark:bg-gray-900 rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div id="unlock-card" className="mt-4 bg-blue-600 rounded-2xl p-1 shadow-lg transform transition-all hover:scale-[1.01]">
+                    <div className="bg-white dark:bg-[#0F141D] rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
                         <div className="flex items-center gap-4">
-                            <div className={`p-4 rounded-full ${coins >= nextCheckpoint.cost ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                            <div className={`p-4 rounded-full ${coins >= nextCheckpoint.cost ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-[#121821]'}`}>
                                 {coins >= nextCheckpoint.cost ? (
                                     <Unlock className="w-6 h-6 text-green-600 dark:text-green-400" />
                                 ) : (
@@ -183,8 +183,8 @@ export const MountainClimber: React.FC<MountainClimberProps> = ({
                             className={`
                                 relative px-8 py-3 rounded-xl font-bold text-white shadow-md transition-all
                                 ${coins >= nextCheckpoint.cost
-                                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0'
-                                    : 'bg-gray-300 dark:bg-gray-800 cursor-not-allowed opacity-70'}
+                                    ? 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0'
+                                    : 'bg-gray-300 dark:bg-[#121821] cursor-not-allowed opacity-70'}
                             `}
                         >
                             {coins >= nextCheckpoint.cost ? (
@@ -222,15 +222,15 @@ export const MountainClimber: React.FC<MountainClimberProps> = ({
                             <div key={cp.id} className="flex items-center">
                                 <div className={`
                                     flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all
-                                    ${isCurrent ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 scale-110' :
+                                    ${isCurrent ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 scale-110' :
                                         isUnlocked ? 'border-green-500/50 bg-green-50/50 dark:bg-transparent' :
-                                            'border-gray-200 dark:border-gray-800 opacity-50'}
+                                            'border-gray-200 dark:border-[#1F2733] opacity-50'}
                                 `}>
                                     <div className="text-xs font-bold text-gray-500">{cp.altitude}m</div>
                                     <div className={`w-3 h-3 rounded-full ${isUnlocked ? 'bg-green-500' : 'bg-gray-300'}`} />
                                 </div>
                                 {idx < CHECKPOINT_DATA.length - 1 && (
-                                    <div className={`w-8 h-0.5 ${unlockedCheckpoints.includes(CHECKPOINT_DATA[idx + 1].id) ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'}`} />
+                                    <div className={`w-8 h-0.5 ${unlockedCheckpoints.includes(CHECKPOINT_DATA[idx + 1].id) ? 'bg-green-500' : 'bg-gray-200 dark:bg-[#2A3444]'}`} />
                                 )}
                             </div>
                         );

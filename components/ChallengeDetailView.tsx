@@ -71,7 +71,7 @@ export const ChallengeDetailView: React.FC<ChallengeDetailViewProps> = ({
                     {onRedact && currentUserId === challenge.creatorId && (
                         <button
                             onClick={onRedact}
-                            className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-[#121821] text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-[#1A2433] rounded-lg transition-colors"
                             title="Redact Challenge"
                         >
                             <Edit2 size={18} />
@@ -100,7 +100,7 @@ export const ChallengeDetailView: React.FC<ChallengeDetailViewProps> = ({
             </div>
 
             {/* Challenge Info Card */}
-            <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm">
+            <div className="bg-white dark:bg-[#0F141D] rounded-2xl p-6 border border-gray-200 dark:border-[#1F2733] shadow-sm">
                 <div className="flex items-start justify-between mb-4">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
@@ -112,7 +112,7 @@ export const ChallengeDetailView: React.FC<ChallengeDetailViewProps> = ({
                     </div>
                     <div className={`px-3 py-1 rounded-full text-xs font-medium ${isActive
                         ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                        : 'bg-gray-100 text-gray-600 dark:bg-[#121821] dark:text-slate-400'
                         }`}>
                         {isActive ? 'Active' : 'Completed'}
                     </div>
@@ -165,8 +165,8 @@ export const ChallengeDetailView: React.FC<ChallengeDetailViewProps> = ({
             </div>
 
             {/* Participant List */}
-            <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm" >
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Participants</h3>
+            <div className="bg-white dark:bg-[#0F141D] rounded-2xl p-6 border border-gray-200 dark:border-[#1F2733] shadow-sm" >
+                <h3 className="font-semibold text-gray-900 dark:text-slate-100 mb-4">Participants</h3>
                 <div className="space-y-3">
                     {sortedParticipants.map((participant, index) => {
                         // FORCE COLOR OVERRIDE to match Sprites
@@ -203,7 +203,7 @@ export const ChallengeDetailView: React.FC<ChallengeDetailViewProps> = ({
                                                 type="text"
                                                 value={editName}
                                                 onChange={(e) => setEditName(e.target.value)}
-                                                className="px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white w-full max-w-[150px]"
+                                                className="px-2 py-1 text-sm border rounded dark:bg-[#121821] dark:border-[#2A3444] dark:text-slate-100 w-full max-w-[150px]"
                                                 autoFocus
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter') handleSaveName(participant.odId);
@@ -214,7 +214,7 @@ export const ChallengeDetailView: React.FC<ChallengeDetailViewProps> = ({
                                         </div>
                                     ) : (
                                         <div className="flex items-center gap-2 group/name">
-                                            <p className="font-bold text-gray-900 dark:text-white">
+                                            <p className="font-bold text-gray-900 dark:text-slate-100">
                                                 {participant.displayName}
                                                 {participant.odId === currentUserId && (
                                                     <span className="text-xs ml-2 opacity-80" style={{ color: displayColor }}>(You)</span>
@@ -232,7 +232,7 @@ export const ChallengeDetailView: React.FC<ChallengeDetailViewProps> = ({
                                             )}
                                         </div>
                                     )}
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                                    <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">
                                         {participant.completedDays}/{challenge.duration} days completed
                                     </p>
                                 </div>

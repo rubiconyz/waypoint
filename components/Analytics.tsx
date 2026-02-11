@@ -311,12 +311,12 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
   };
 
   return (
-    <div className="mt-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 space-y-6 animate-fade-in border border-gray-100 dark:border-gray-700">
+    <div className="mt-4 bg-gray-50 dark:bg-[#0F141D] rounded-xl p-5 space-y-6 animate-fade-in border border-gray-100 dark:border-[#1F2733]">
 
 
       {/* 1. HERO STATS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
+        <div className="bg-white dark:bg-[#0F141D] p-3 rounded-lg border border-gray-100 dark:border-[#1F2733] shadow-sm">
           <div className="flex items-center gap-2 text-orange-500 mb-1">
             <Flame size={18} />
             <span className="text-xs font-semibold uppercase tracking-wider">Streak</span>
@@ -325,7 +325,7 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
           <div className="text-[10px] text-gray-500">Best: {stats.bestStreak}</div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-100 dark:border-700 shadow-sm">
+        <div className="bg-white dark:bg-[#0F141D] p-3 rounded-lg border border-gray-100 dark:border-[#1F2733] shadow-sm">
           <div className="flex items-center gap-2 text-blue-500 mb-1">
             <Activity size={18} />
             <span className="text-xs font-semibold uppercase tracking-wider">Rate</span>
@@ -334,7 +334,7 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
           <div className="text-[10px] text-gray-500">Last 30 days</div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
+        <div className="bg-white dark:bg-[#0F141D] p-3 rounded-lg border border-gray-100 dark:border-[#1F2733] shadow-sm">
           <div className="flex items-center gap-2 text-green-500 mb-1">
             <Trophy size={18} />
             <span className="text-xs font-semibold uppercase tracking-wider">Total</span>
@@ -343,7 +343,7 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
           <div className="text-[10px] text-gray-500">Times completed</div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
+        <div className="bg-white dark:bg-[#0F141D] p-3 rounded-lg border border-gray-100 dark:border-[#1F2733] shadow-sm">
           <div className="flex items-center gap-2 text-purple-500 mb-1">
             <Calendar size={18} />
             <span className="text-xs font-semibold uppercase tracking-wider">Best Day</span>
@@ -355,7 +355,7 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 2. CALENDAR VIEW */}
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+        <div className="bg-white dark:bg-[#0F141D] p-4 rounded-xl border border-gray-100 dark:border-[#1F2733] shadow-sm">
           <div className="flex items-center justify-between mb-4">
             {/* Month Navigation */}
             <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-500 transition-colors">
@@ -410,7 +410,7 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
               let bgClass = 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500';
 
               if (isFuture) {
-                bgClass = 'bg-gray-50 dark:bg-gray-800/50 text-gray-300 dark:text-gray-600';
+                bgClass = 'bg-gray-50 dark:bg-[#121821] text-gray-300 dark:text-gray-600';
               } else if (isAfterCreation) {
                 // Missed (Red) - Default state for days after creation that aren't done
                 bgClass = 'bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400';
@@ -467,7 +467,7 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
         </div>
 
         {/* 3. WEEKLY COMPLETIONS CHART (Restored) */}
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col h-full min-h-[300px]">
+        <div className="bg-white dark:bg-[#0F141D] p-4 rounded-xl border border-gray-100 dark:border-[#1F2733] shadow-sm flex flex-col h-full min-h-[300px]">
           <h4 className="font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2 shrink-0">
             <BarChart2 size={16} className="text-gray-400" />
             Weekly Completions
@@ -502,7 +502,7 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
 
               return (
                 <div key={i} className="flex-1 flex flex-col items-center group h-full justify-end">
-                  <div className="w-full relative flex-1 bg-gray-100 dark:bg-gray-700/30 rounded-md overflow-visible flex items-end">
+                  <div className="w-full relative flex-1 bg-gray-100 dark:bg-[#121821] rounded-md overflow-visible flex items-end">
 
                     {/* Bar */}
                     <div
@@ -524,7 +524,7 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
             })}
           </div>
 
-          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 shrink-0">
+          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-[#1F2733] shrink-0">
             <div className="flex justify-between items-center text-xs text-gray-500">
               <span>Performance</span>
               <div className="font-bold text-gray-900 dark:text-white">
@@ -540,7 +540,7 @@ const HabitDetailPanel = ({ habit }: { habit: Habit & { rate: number } }) => {
 
 // Sub-component: Insight Card
 const InsightCard = ({ icon: Icon, title, value, description, trend, trendLabel, color = 'blue' }: any) => (
-  <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col h-full relative overflow-hidden group">
+  <div className="bg-white dark:bg-[#0F141D] p-4 rounded-xl border border-gray-100 dark:border-[#1F2733] shadow-sm flex flex-col h-full relative overflow-hidden group">
     <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-500/5 rounded-full -mr-10 -mt-10 transition-transform group-hover:scale-150`} />
 
     <div className="flex items-start justify-between mb-3 relative z-10">
@@ -548,7 +548,7 @@ const InsightCard = ({ icon: Icon, title, value, description, trend, trendLabel,
         <Icon size={20} />
       </div>
       {trend && (
-        <div className={`flex items-center gap-1 text-xs font-bold ${trend === 'up' ? 'text-green-500' : 'text-red-500'} bg-white dark:bg-gray-900 px-2 py-1 rounded-full shadow-sm`}>
+        <div className={`flex items-center gap-1 text-xs font-bold ${trend === 'up' ? 'text-green-500' : 'text-red-500'} bg-white dark:bg-[#121821] px-2 py-1 rounded-full shadow-sm`}>
           {trend === 'up' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
           {trendLabel}
         </div>
@@ -795,7 +795,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
   }, [habits]);
 
   const getColor = (intensity: number) => {
-    if (intensity === 0) return 'bg-gray-100 dark:bg-gray-800';
+    if (intensity === 0) return 'bg-gray-100 dark:bg-[#121821]';
     if (intensity <= 0.25) return 'bg-green-200 dark:bg-green-900/40';
     if (intensity <= 0.5) return 'bg-green-400 dark:bg-green-700/60';
     if (intensity <= 0.75) return 'bg-green-600 dark:bg-green-600';
@@ -849,7 +849,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
       )}
 
       {/* Heatmap Section */}
-      <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm transition-colors overflow-hidden">
+      <div className="bg-white dark:bg-[#0F141D] p-6 rounded-xl border border-gray-200 dark:border-[#1F2733] shadow-sm transition-colors overflow-hidden">
         <div className="flex items-center gap-2 mb-6">
           <Calendar className="text-gray-400" size={20} />
           <h3 className="font-semibold text-gray-800 dark:text-white">Yearly Activity ({new Date().getFullYear()})</h3>
@@ -892,7 +892,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
               <div className="mt-6 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 justify-end">
                 <span>Less</span>
                 <div className="flex gap-1">
-                  <div className="w-3 h-3 bg-gray-100 dark:bg-gray-800 rounded-sm"></div>
+                  <div className="w-3 h-3 bg-gray-100 dark:bg-[#121821] rounded-sm"></div>
                   <div className="w-3 h-3 bg-green-200 dark:bg-green-900/40 rounded-sm"></div>
                   <div className="w-3 h-3 bg-green-400 dark:bg-green-700/60 rounded-sm"></div>
                   <div className="w-3 h-3 bg-green-600 dark:bg-green-600 rounded-sm"></div>
@@ -906,7 +906,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
       </div>
 
       {/* Weekly Trend Bar Chart */}
-      <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm transition-colors">
+      <div className="bg-white dark:bg-[#0F141D] p-6 rounded-xl border border-gray-200 dark:border-[#1F2733] shadow-sm transition-colors">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <TrendingUp className="text-gray-400" size={20} />
@@ -917,7 +917,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setWeekOffset(weekOffset + 1)}
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-500 transition-colors"
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#121821] rounded-full text-gray-500 transition-colors"
               title="Previous Week"
             >
               <ChevronDown size={18} className="rotate-90" />
@@ -930,7 +930,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
             <button
               onClick={() => setWeekOffset(weekOffset - 1)}
               disabled={weekOffset === 0}
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#121821] rounded-full text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               title="Next Week"
             >
               <ChevronDown size={18} className="-rotate-90" />
@@ -1011,13 +1011,13 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
                           {day.dayName}
                         </div>
                         <div className="flex-1 flex items-center gap-2">
-                          <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full h-8 overflow-hidden relative">
+                          <div className="flex-1 bg-gray-100 dark:bg-[#121821] rounded-full h-8 overflow-hidden relative">
                             {/* Bar Layer */}
                             <div
                               className={`h-full rounded-full transition-all duration-1000 ease-out flex items-center justify-end pr-3 ${day.percentage >= 80 ? 'bg-emerald-500' :
                                 day.percentage >= 50 ? 'bg-blue-500' :
                                   day.percentage > 0 ? 'bg-orange-500' :
-                                    'bg-gray-300 dark:bg-gray-700'
+                                    'bg-gray-300 dark:bg-[#2A3444]'
                                 }`}
                               style={{ width: `${Math.max(day.percentage, 5)}%` }}
                             >
@@ -1038,7 +1038,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
               );
             })()}
 
-            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-center gap-4 text-[10px] text-gray-500 dark:text-gray-400">
+            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-[#1F2733] flex items-center justify-center gap-4 text-[10px] text-gray-500 dark:text-gray-400">
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
                 <span>80%+</span>
@@ -1059,7 +1059,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
       {/* 4. LIFE BALANCE SPIDER CHART & STATS ROW */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 animate-slide-up-delay-2">
         {/* SPIDER CHART */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col items-center">
+        <div className="bg-white dark:bg-[#0F141D] p-6 rounded-2xl border border-gray-100 dark:border-[#1F2733] shadow-sm flex flex-col items-center">
           <h4 className="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2 self-start w-full">
             <Hexagon size={18} className="text-purple-500" />
             Life Balance
@@ -1107,7 +1107,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
 
               if (categoryStats.length < 3) {
                 return (
-                  <div className="h-64 flex flex-col items-center justify-center text-center text-gray-400 p-8 border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-xl w-full">
+                  <div className="h-64 flex flex-col items-center justify-center text-center text-gray-400 p-8 border-2 border-dashed border-gray-100 dark:border-[#1F2733] rounded-xl w-full">
                     <Hexagon size={32} className="mb-2 opacity-50" />
                     <p className="text-sm font-medium">Not enough categories</p>
                     <p className="text-xs mt-1">Add habits in at least 3 distinct categories<br />to see your life balance web.</p>
@@ -1127,7 +1127,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
         </div>
 
         {/* HARMONY SCORE & FOCUS (Replaces Weekly Cycle) */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col justify-between">
+        <div className="bg-white dark:bg-[#0F141D] p-6 rounded-2xl border border-gray-100 dark:border-[#1F2733] shadow-sm flex flex-col justify-between">
           <div>
             <h4 className="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
               <Scale size={18} className="text-teal-500" />
@@ -1271,7 +1271,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
       </div>
 
       {/* Habit Breakdown */}
-      <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm transition-colors">
+      <div className="bg-white dark:bg-[#0F141D] p-6 rounded-xl border border-gray-200 dark:border-[#1F2733] shadow-sm transition-colors">
         <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Habit Performance (Last 30 Days)</h3>
         <p className="text-xs text-gray-400 dark:text-gray-500 mb-6">Click a habit to see detailed insights</p>
         <div className="space-y-3">
@@ -1281,7 +1281,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
               <div key={habit.id} className="transition-all">
                 <button
                   onClick={() => setExpandedHabitId(isExpanded ? null : habit.id)}
-                  className="w-full text-left hover:bg-gray-50 dark:hover:bg-gray-800/50 p-2 -m-2 rounded-lg transition-colors"
+                  className="w-full text-left hover:bg-gray-50 dark:hover:bg-[#121821] p-2 -m-2 rounded-lg transition-colors"
                 >
                   <div className="flex justify-between items-center text-sm mb-1.5">
                     <span className="font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
@@ -1290,7 +1290,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({ habits }) => {
                     </span>
                     <span className="text-gray-500 dark:text-gray-400">{habit.rate}%</span>
                   </div>
-                  <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2.5">
+                  <div className="w-full bg-gray-100 dark:bg-[#121821] rounded-full h-2.5">
                     <div
                       className={`h-2.5 rounded-full transition-all duration-500 ${habit.rate >= 80 ? 'bg-green-500' :
                         habit.rate >= 50 ? 'bg-blue-500' :

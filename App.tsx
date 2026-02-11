@@ -10,10 +10,16 @@ import { AnalyticsTab as ImmersionAnalyticsTab } from './components/Immersion/An
 import { BadgeNotification } from './components/BadgeComponents';
 
 import { MountainClimber } from './components/MountainClimber';
-import { MuscleRecoveryTab } from './components/MuscleRecoveryTab';
+import { HabitDNA } from './components/HabitDNA';
+import { RadialSchedule } from './components/RadialSchedule';
+import { TrackerViewToggle, TrackerView } from './components/TrackerViewToggle';
+import { DashboardHeader } from './components/DashboardHeader';
+import { StatsOverview } from './components/StatsOverview';
+import { HabitCard } from './components/HabitCard';
 import { AuthModal } from './components/AuthModal';
-import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, LogOut, User, Menu, Command, Plus, Coins, Users, Cloud, Languages, BookOpen, Activity, MessageCircle } from 'lucide-react';
-import { Habit, HabitFrequency, Badge, BadgeProgress, Challenge, SavedWord, RecentVideo, DailyUsageLog, WorkoutLog, WordMasteryLevel, TrainingProgramState } from './types';
+import { FocusTip } from './components/FocusTip';
+import { ListTodo, BarChart2, Sun, Moon, CheckCircle2, Award, Mountain, User, Menu, Command, Plus, Coins, Users, Cloud, Languages, BookOpen, MessageCircle, Dna } from 'lucide-react';
+import { Habit, HabitFrequency, Badge, BadgeProgress, Challenge, SavedWord, RecentVideo, DailyUsageLog, WorkoutLog, WordMasteryLevel, TrainingProgramState, TimeBlock, HabitDNAProfile } from './types';
 import { checkBadgeUnlocks } from './badges';
 import { initialHabits, initialSavedWords } from './data';
 import confetti from 'canvas-confetti';
@@ -22,7 +28,6 @@ import { SettingsSidebar } from './components/SettingsSidebar';
 import { LandingPage } from './components/LandingPage';
 import { FocusMode } from './components/FocusMode';
 import { SpotlightTour, TourStep } from './components/SpotlightTour';
-import { BrainCircuit } from 'lucide-react';
 import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 import {
   saveHabitsToFirestore,
@@ -331,10 +336,15 @@ const App: React.FC = () => {
     return JSON.parse(localStorage.getItem('habitvision_seen_tour_steps') || '[]');
   });
 
-  const [activeTab, setActiveTab] = useState<'tracker' | 'analytics' | 'badges' | 'challenges' | 'mountain' | 'recovery' | 'immersion' | 'vocab' | 'immersion-analytics'>(() => {
+  const [activeTab, setActiveTab] = useState<'tracker' | 'analytics' | 'badges' | 'challenges' | 'mountain' | 'dna' | 'immersion' | 'vocab' | 'immersion-analytics'>(() => {
     const saved = localStorage.getItem(ACTIVE_TAB_KEY);
-    return (saved as any) || 'tracker';
+    const validTabs = ['tracker', 'analytics', 'badges', 'challenges', 'mountain', 'dna', 'immersion', 'vocab', 'immersion-analytics'];
+    if (saved && validTabs.includes(saved)) return saved as 'tracker' | 'analytics' | 'badges' | 'challenges' | 'mountain' | 'dna' | 'immersion' | 'vocab' | 'immersion-analytics';
+    return 'tracker';
   });
+
+  // Habit View Date State (lifted from HabitList for progress sync)
+  const [habitViewDate, setHabitViewDate] = useState<Date>(new Date());
 
   const [wallpaper, setWallpaper] = useState<string>(() => {
     return localStorage.getItem('habitvision_wallpaper') || 'none';
@@ -400,6 +410,91 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem(TRAINING_PROGRAM_KEY, JSON.stringify(trainingProgram));
   }, [trainingProgram]);
+
+  // Radial Schedule State
+  const TIME_BLOCKS_KEY = 'habitvision-time-blocks';
+  const TRACKER_VIEW_KEY = 'habitvision-tracker-view';
+  const DISPLAY_NAME_KEY = 'habitvision-display-name';
+  const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>(() => {
+    const saved = localStorage.getItem(TIME_BLOCKS_KEY);
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [trackerView, setTrackerView] = useState<TrackerView>(() => {
+    const saved = localStorage.getItem(TRACKER_VIEW_KEY);
+    return (saved as TrackerView) || 'list';
+  });
+  const [profileName, setProfileName] = useState(() => localStorage.getItem(DISPLAY_NAME_KEY) || '');
+  const [radialAddTrigger, setRadialAddTrigger] = useState(0);
+
+  const effectiveUserName = useMemo(() => {
+    const customName = profileName.trim();
+    if (customName) return customName;
+    return user?.email?.split('@')[0] || 'Guest';
+  }, [profileName, user]);
+
+  useEffect(() => {
+    localStorage.setItem(TIME_BLOCKS_KEY, JSON.stringify(timeBlocks));
+  }, [timeBlocks]);
+
+  useEffect(() => {
+    localStorage.setItem(TRACKER_VIEW_KEY, trackerView);
+  }, [trackerView]);
+
+  useEffect(() => {
+    localStorage.setItem(DISPLAY_NAME_KEY, profileName.trim());
+  }, [profileName]);
+
+  // Habit DNA State
+  const DNA_PROFILE_KEY = 'habitvision-dna-profile';
+  const [dnaProfile, setDnaProfile] = useState<HabitDNAProfile>(() => {
+    const saved = localStorage.getItem(DNA_PROFILE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Strip any leftover base64 images from history to prevent quota issues
+        if (parsed.history) {
+          parsed.history = parsed.history.map((s: any) => {
+            const { characterImageBase64, ...rest } = s;
+            return rest;
+          });
+        }
+        return parsed;
+      } catch { return { current: null, history: [] }; }
+    }
+    return { current: null, history: [] };
+  });
+
+  useEffect(() => {
+    try {
+      // Strip image data from history before saving to keep localStorage small
+      const toSave = {
+        ...dnaProfile,
+        history: dnaProfile.history.map((s: any) => {
+          const { characterImageBase64, ...rest } = s;
+          return rest;
+        }),
+      };
+      localStorage.setItem(DNA_PROFILE_KEY, JSON.stringify(toSave));
+    } catch (e) {
+      console.warn('Failed to save DNA profile to localStorage:', e);
+    }
+  }, [dnaProfile]);
+
+  const handleAddTimeBlock = (block: Omit<TimeBlock, 'id'>) => {
+    const newBlock: TimeBlock = {
+      ...block,
+      id: crypto.randomUUID(),
+    };
+    setTimeBlocks(prev => [...prev, newBlock]);
+  };
+
+  const handleEditTimeBlock = (updatedBlock: TimeBlock) => {
+    setTimeBlocks(prev => prev.map(b => b.id === updatedBlock.id ? updatedBlock : b));
+  };
+
+  const handleDeleteTimeBlock = (id: string) => {
+    setTimeBlocks(prev => prev.filter(b => b.id !== id));
+  };
 
   const handleAddWorkout = (log: Omit<WorkoutLog, 'id' | 'createdAt'>) => {
     const newLog: WorkoutLog = {
@@ -768,7 +863,7 @@ const App: React.FC = () => {
   // Sync user name in challenges when user updates/logs in
   useEffect(() => {
     if (user && challenges.length > 0) {
-      const currentName = user.email?.split('@')[0] || 'User';
+      const currentName = effectiveUserName || 'User';
       const userId = user.uid;
 
       let hasChanges = false;
@@ -786,7 +881,7 @@ const App: React.FC = () => {
         localStorage.setItem('habitvision_challenges', JSON.stringify(updatedChallenges));
       }
     }
-  }, [user]); // Removed 'challenges' from deps to avoid loop, though logic handles it. 
+  }, [user, challenges, effectiveUserName]); // Safe due to hasChanges guard.
   // Actually, including challenges is fine if we check hasChanges properly, but let's be safe.
   // Ideally we only want to run when 'user' changes.
 
@@ -1332,16 +1427,56 @@ const App: React.FC = () => {
     else document.documentElement.classList.remove('dark');
   };
 
-  // Progress today
+  // Progress for viewed date
+  const viewedDateStr = getLocalDateString(habitViewDate);
   const todayStr = getLocalDateString(new Date());
-  const dueHabitsToday = habits.filter(h => {
-    if (h.frequency.type === 'daily') return true;
-    if (h.frequency.type === 'custom') return h.frequency.days.includes(new Date().getDay());
-    return true;
-  });
+  const isViewingToday = viewedDateStr === todayStr;
+  const isHabitDueOnDate = (habit: Habit, date: Date) => {
+    const dateStr = getLocalDateString(date);
+    if (habit.createdAt && dateStr < getLocalDateString(new Date(habit.createdAt))) {
+      return false;
+    }
+    if (habit.frequency.type === 'daily') return true;
+    if (habit.frequency.type === 'custom') return habit.frequency.days.includes(date.getDay());
+    return true; // weekly habits are available every day, tracked as weekly target
+  };
 
-  const completedCount = dueHabitsToday.filter(h => h.history[todayStr] === 'completed' || h.history[todayStr] === 'skipped').length;
-  const progressPercentage = dueHabitsToday.length > 0 ? Math.round((completedCount / dueHabitsToday.length) * 100) : 0;
+  const getProgressStatsForDate = (date: Date) => {
+    const dateStr = getLocalDateString(date);
+    const dueHabits = habits.filter(h => isHabitDueOnDate(h, date));
+    const completed = dueHabits.filter(h => h.history[dateStr] === 'completed' || h.history[dateStr] === 'skipped').length;
+    const percentage = dueHabits.length > 0 ? Math.round((completed / dueHabits.length) * 100) : 0;
+    return { dueHabits, completed, percentage };
+  };
+
+  const viewedProgressStats = getProgressStatsForDate(habitViewDate);
+  const dueHabitsOnViewedDate = viewedProgressStats.dueHabits;
+  const completedCount = viewedProgressStats.completed;
+  const progressPercentage = viewedProgressStats.percentage;
+
+  const dailyProgressTrend = useMemo(() => {
+    return Array.from({ length: 7 }, (_, index) => {
+      const d = new Date(habitViewDate);
+      d.setDate(d.getDate() - (6 - index));
+      const stats = getProgressStatsForDate(d);
+      return {
+        date: getLocalDateString(d),
+        label: d.toLocaleDateString('en-US', { weekday: 'short' }).charAt(0),
+        percentage: stats.percentage,
+      };
+    });
+  }, [habitViewDate, habits]);
+
+  const previousWeekDate = useMemo(() => {
+    const d = new Date(habitViewDate);
+    d.setDate(d.getDate() - 7);
+    return d;
+  }, [habitViewDate]);
+  const previousWeekProgress = getProgressStatsForDate(previousWeekDate).percentage;
+  const progressDelta = progressPercentage - previousWeekProgress;
+  const previousWeekLabel = previousWeekDate.toLocaleDateString('en-US', { weekday: 'long' });
+  const progressCircumference = 2 * Math.PI * 25; // r = 25
+  const progressOffset = progressCircumference * (1 - progressPercentage / 100);
   const ghostProfile = useMemo(() => getGhostProfile(habits), [habits]);
 
   // Calculate Perfect Streak
@@ -1350,7 +1485,7 @@ const App: React.FC = () => {
   // Handle Join Challenge (Async with Firestore)
   const handleJoinChallenge = async (inviteCode: string) => {
     const currentUserId = user?.uid || 'guest';
-    const displayName = user?.email?.split('@')[0] || 'Guest';
+    const displayName = effectiveUserName || 'Guest';
 
     // 1. Check if we already have it locally
     let challenge = challenges.find(c => c.inviteCode === inviteCode);
@@ -1437,13 +1572,13 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-200 ${(activeTab === 'tracker' && wallpaper !== 'none') ? 'bg-transparent' : 'bg-gray-50 dark:bg-gray-950'
+    <div className={`min-h-screen flex flex-col transition-colors duration-200 ${(activeTab === 'tracker' && wallpaper !== 'none') ? 'bg-transparent' : 'bg-gray-50 dark:bg-black'
       }`}>
-      <header className={`border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50 transition-colors ${(activeTab === 'tracker' && wallpaper !== 'none')
+      <header className={`border-b border-gray-200 dark:border-[#1F2733] sticky top-0 z-50 transition-colors ${(activeTab === 'tracker' && wallpaper !== 'none')
         ? 'bg-white/60 dark:bg-black/60 backdrop-blur-xl border-white/20 dark:border-white/10'
-        : 'bg-white dark:bg-gray-900 shadow-sm'
+        : 'bg-white dark:bg-black shadow-sm'
         }`}>
-        <div className="w-full px-4 h-16 flex items-center justify-between">
+        <div className="w-full px-4 h-16 grid grid-cols-[auto_1fr_auto] items-center gap-4">
           {/* Left Section: Logo & Saved Status */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -1467,7 +1602,56 @@ const App: React.FC = () => {
             )}
           </div>
 
-          {/* Right Section: Actions & Navigation */}
+          {/* Center Section: Navigation */}
+          <div className="flex justify-center">
+            <nav className="hidden md:flex gap-1 bg-gray-100 dark:bg-[#0F141D] border border-transparent dark:border-[#1F2733] p-1 rounded-lg">
+              {appMode === 'habits' ? (
+                <>
+                  <button onClick={() => setActiveTab('tracker')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'tracker' ? 'bg-white dark:bg-[#172131] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-100'}`}>
+                    <ListTodo size={16} />
+                    <span className="hidden sm:inline">Tracker</span>
+                  </button>
+                  <button onClick={() => setActiveTab('analytics')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'analytics' ? 'bg-white dark:bg-[#172131] text-indigo-700 dark:text-indigo-300 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-100'}`}>
+                    <BarChart2 size={16} />
+                    <span className="hidden sm:inline">Analytics</span>
+                  </button>
+                  <button onClick={() => setActiveTab('badges')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'badges' ? 'bg-white dark:bg-[#172131] text-yellow-600 dark:text-yellow-300 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-100'}`}>
+                    <Award size={16} />
+                    <span className="hidden sm:inline">Badges</span>
+                  </button>
+                  <button onClick={() => setActiveTab('challenges')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'challenges' ? 'bg-white dark:bg-[#172131] text-purple-600 dark:text-purple-300 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-100'}`}>
+                    <Users size={16} />
+                    <span className="hidden sm:inline">Challenges</span>
+                  </button>
+                  <button id="nav-mountain" onClick={() => setActiveTab('mountain')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'mountain' ? 'bg-white dark:bg-[#172131] text-blue-600 dark:text-blue-300 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-100'}`}>
+                    <Mountain size={16} />
+                    <span className="hidden sm:inline">Progress</span>
+                  </button>
+                  <button onClick={() => setActiveTab('dna')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'dna' ? 'bg-white dark:bg-[#172131] text-rose-600 dark:text-rose-300 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-100'}`}>
+                    <Dna size={16} />
+                    <span className="hidden sm:inline">DNA</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => setActiveTab('immersion')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'immersion' ? 'bg-white dark:bg-[#172131] text-emerald-600 dark:text-emerald-300 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-100'}`}>
+                    <Languages size={16} />
+                    <span className="hidden sm:inline">Immersion</span>
+                  </button>
+                  <button onClick={() => setActiveTab('vocab')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'vocab' ? 'bg-white dark:bg-[#172131] text-emerald-600 dark:text-emerald-300 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-100'}`}>
+                    <BookOpen size={16} />
+                    <span className="hidden sm:inline">Vocab</span>
+                  </button>
+                  <button onClick={() => setActiveTab('immersion-analytics')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'immersion-analytics' ? 'bg-white dark:bg-[#172131] text-blue-600 dark:text-blue-300 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-100'}`}>
+                    <BarChart2 size={16} />
+                    <span className="hidden sm:inline">Analytics</span>
+                  </button>
+                </>
+              )}
+            </nav>
+          </div>
+
+          {/* Right Section: Actions */}
           <div className="flex items-center gap-2 md:gap-3">
             {appMode === 'habits' && (
               <div id="stats-coins" className="flex items-center gap-1.5 px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-full font-bold text-sm">
@@ -1476,72 +1660,12 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {appMode === 'habits' && (
-              <button
-                onClick={() => setShowFocusMode(true)}
-                className="p-2 text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-white transition-colors rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40"
-                title="Focus Tools (ADHD Assist)"
-              >
-                <BrainCircuit size={20} />
-              </button>
-            )}
-
-            <button onClick={toggleTheme} className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-
-            {/* Navigation Items (Context Sensitive) */}
-            <nav className="hidden md:flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg ml-2">
-              {appMode === 'habits' ? (
-                <>
-                  <button onClick={() => setActiveTab('tracker')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'tracker' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                    <ListTodo size={16} />
-                    <span className="hidden sm:inline">Tracker</span>
-                  </button>
-                  <button onClick={() => setActiveTab('analytics')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'analytics' ? 'bg-white dark:bg-gray-700 text-indigo-700 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                    <BarChart2 size={16} />
-                    <span className="hidden sm:inline">Analytics</span>
-                  </button>
-                  <button onClick={() => setActiveTab('badges')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'badges' ? 'bg-white dark:bg-gray-700 text-yellow-600 dark:text-yellow-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                    <Award size={16} />
-                    <span className="hidden sm:inline">Badges</span>
-                  </button>
-                  <button onClick={() => setActiveTab('challenges')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'challenges' ? 'bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                    <Users size={16} />
-                    <span className="hidden sm:inline">Challenges</span>
-                  </button>
-                  <button id="nav-mountain" onClick={() => setActiveTab('mountain')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'mountain' ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                    <Mountain size={16} />
-                    <span className="hidden sm:inline">Mountain</span>
-                  </button>
-                  {habits.some(h => h.category === 'Fitness') && (
-                    <button onClick={() => setActiveTab('recovery')} className={`px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'recovery' ? 'bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                      <Activity size={16} />
-                      <span className="hidden sm:inline">Recovery</span>
-                    </button>
-                  )}
-                </>
-              ) : (
-                <>
-                  <button onClick={() => setActiveTab('immersion')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'immersion' ? 'bg-white dark:bg-gray-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                    <Languages size={16} />
-                    <span className="hidden sm:inline">Immersion</span>
-                  </button>
-                  <button onClick={() => setActiveTab('vocab')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'vocab' ? 'bg-white dark:bg-gray-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                    <BookOpen size={16} />
-                    <span className="hidden sm:inline">Vocab</span>
-                  </button>
-                  <button onClick={() => setActiveTab('immersion-analytics')} className={`relative px-3 md:px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'immersion-analytics' ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                    <BarChart2 size={16} />
-                    <span className="hidden sm:inline">Analytics</span>
-                  </button>
-                </>
-              )}
-            </nav>
-
             {/* User Auth */}
             {user ? (
               <div className="flex items-center gap-2 ml-2">
+                <button onClick={toggleTheme} className="p-2 text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-[#121821]">
+                  {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+                </button>
                 {/* User Avatar */}
                 {user.photoURL ? (
                   <img
@@ -1554,30 +1678,27 @@ const App: React.FC = () => {
                     {user.email?.[0].toUpperCase()}
                   </div>
                 )}
-
-                <button
-                  onClick={logout}
-                  className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                  title="Logout"
-                >
-                  <LogOut size={20} />
-                </button>
               </div>
             ) : (
-              <button
-                id="btn-auth-user"
-                onClick={() => setShowAuthModal(true)}
-                className="ml-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
-              >
-                <User size={16} />
-                <span className="hidden sm:inline">Sign In</span>
-              </button>
+              <div className="flex items-center gap-2 ml-2">
+                <button onClick={toggleTheme} className="p-2 text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-[#121821]">
+                  {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+                </button>
+                <button
+                  id="btn-auth-user"
+                  onClick={() => setShowAuthModal(true)}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
+                >
+                  <User size={16} />
+                  <span className="hidden sm:inline">Sign In</span>
+                </button>
+              </div>
             )}
 
             {/* Quick Menu Handle */}
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="ml-2 p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="ml-2 p-2 text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-[#121821] transition-colors"
               title="Menu / Shortcuts (Cmd+K)"
             >
               <Menu size={20} />
@@ -1588,7 +1709,7 @@ const App: React.FC = () => {
       {/* Wallpaper Background Layer */}
       {activeTab === 'tracker' && wallpaper !== 'none' && (
         <div
-          className="fixed inset-0 -z-10 transition-all duration-700 bg-cover bg-center bg-no-repeat bg-[#F3F4F6] dark:bg-[#0f1115]"
+          className="fixed inset-0 -z-10 transition-all duration-700 bg-cover bg-center bg-no-repeat bg-[#F3F4F6] dark:bg-black"
           style={{
             backgroundImage:
               wallpaper === 'sunset' ? "url('/assets/wallpapers/sunset.jpg')" :
@@ -1601,119 +1722,132 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Global Action Button (Mobile Only) */}
-      {!isSettingsOpen && activeTab === 'tracker' && (
-        <button
-          onClick={() => {
-            // Trigger add habit logic (we need access to setIsAdding in HabitList, but it's internal state)
-            // Alternative: dispatch visible event or use context.
-            // For now, let's target the hidden button in HabitList header if present
-            document.getElementById('btn-new-habit')?.click();
-          }}
-          className={`md:hidden fixed bottom-24 right-6 w-14 h-14 rounded-2xl shadow-xl flex items-center justify-center text-white z-50 transition-all active:scale-95 ${wallpaper !== 'none'
-            ? 'bg-gradient-to-br from-indigo-500/75 to-purple-600/75 backdrop-blur-sm'
-            : 'bg-gradient-to-br from-indigo-500 to-purple-600'
-            }`}
-        >
-          <Plus size={28} strokeWidth={2.5} />
-        </button>
-      )}
-
       {/* Main Content Area */}
       <main className={`w-full px-4 py-8 pb-24 md:pb-8 ${appMode === 'habits' ? 'max-w-5xl mx-auto' : ''}`}>
         {activeTab === 'tracker' ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Stats Column - Order 2 on Mobile, Order 2 on Desktop (Right Side) */}
-            <div className="space-y-6 order-2 md:order-2 md:col-span-1">
-              <div className={`rounded-xl p-6 text-white shadow-lg relative overflow-hidden ${(activeTab === 'tracker' && wallpaper !== 'none')
-                ? 'bg-blue-600/90 backdrop-blur-sm'
-                : 'bg-blue-600'
-                }`}>
-                <h3 className="text-lg font-semibold mb-2 relative z-10">Daily Progress</h3>
-                <div className="flex items-end gap-2 mb-1 relative z-10">
-                  <span className="text-4xl font-bold">{progressPercentage}%</span>
-                  <span className="mb-1 opacity-80">completed</span>
-                </div>
-                <div className="w-full bg-black/20 rounded-full h-2 mt-2 relative z-10">
-                  <div className="bg-white rounded-full h-2 transition-all duration-500" style={{ width: `${progressPercentage}%` }}></div>
-                </div>
+          <div className="space-y-6">
+            {/* Full Width Greeting Header */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100 font-display">
+                  {(() => {
+                    const hour = new Date().getHours();
+                    if (hour < 12) return 'Good morning';
+                    if (hour < 17) return 'Good afternoon';
+                    return 'Good evening';
+                  })()}, {effectiveUserName || 'there'}
+                </h1>
+                <p className="text-gray-500 dark:text-slate-400 mt-1 text-lg">
+                  {habitViewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                </p>
+              </div>
+              <div className="flex-shrink-0">
+                <TrackerViewToggle view={trackerView} onViewChange={setTrackerView} />
+              </div>
+            </div>
 
-                {/* Daily Rival - Compact comparison */}
-                {ghostProfile.hasDueToday && ghostProfile.hasLastWeekData && (
-                  <div className="mt-4 pt-3 border-t border-white/20 relative z-10">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="opacity-80">vs last {ghostProfile.comparisonDay}</span>
-                      <span className={`font-semibold flex items-center gap-1 ${ghostProfile.deltaPercent >= 0 ? 'text-green-200' : 'text-orange-200'}`}>
-                        {ghostProfile.deltaPercent >= 0 ? '↑' : '↓'} {Math.abs(ghostProfile.deltaPercent)}%
-                        <span className="opacity-70 font-normal">({ghostProfile.lastWeekPercent}%)</span>
-                      </span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className={`space-y-6 order-1 md:order-2 ${trackerView === 'list' ? 'md:col-span-1' : 'hidden'}`}>
+                {trackerView === 'list' ? (
+                  <>
+                    <div className={`rounded-2xl p-5 border shadow-sm ${wallpaper !== 'none'
+                      ? 'bg-white/80 dark:bg-[#0F141D]/85 backdrop-blur-xl border-white/30 dark:border-[#1F2733]'
+                      : 'bg-white dark:bg-[#0F141D] border-gray-100 dark:border-[#1F2733]'
+                      }`}>
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Daily Progress</h3>
+                          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                            {completedCount} of {dueHabitsOnViewedDate.length} completed
+                          </p>
+                        </div>
+                        <div className="relative w-16 h-16 flex-shrink-0">
+                          <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
+                            <circle cx="32" cy="32" r="25" stroke="currentColor" strokeWidth="6" fill="none" className="text-gray-200 dark:text-[#263244]" />
+                            <circle
+                              cx="32"
+                              cy="32"
+                              r="25"
+                              stroke="currentColor"
+                              strokeWidth="6"
+                              fill="none"
+                              strokeLinecap="round"
+                              strokeDasharray={progressCircumference}
+                              strokeDashoffset={progressOffset}
+                              className={`${progressPercentage >= 100 ? 'text-emerald-500' : progressPercentage >= 50 ? 'text-blue-500' : 'text-amber-500'} transition-all duration-700 ease-out`}
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-gray-900 dark:text-slate-100">
+                            {progressPercentage}%
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 pt-4 border-t border-gray-200 dark:border-[#1F2733]">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500 dark:text-slate-400">vs last {previousWeekLabel}</span>
+                          <span className={`font-semibold ${progressDelta >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'}`}>
+                            {progressDelta >= 0 ? '↗' : '↘'} {Math.abs(progressDelta)}%
+                          </span>
+                        </div>
+
+                        <div className="mt-4 h-24 flex items-end gap-1.5">
+                          {dailyProgressTrend.map((point, index) => (
+                            <div key={point.date} className="flex-1 h-full flex flex-col items-center gap-1 justify-end">
+                              <div
+                                className={`w-full rounded-sm ${index === dailyProgressTrend.length - 1
+                                  ? 'bg-blue-500'
+                                  : 'bg-blue-200 dark:bg-[#1B2940]'
+                                  } transition-all duration-700 ease-out`}
+                                style={{ height: `${Math.max(point.percentage, 8)}%` }}
+                                title={`${point.date}: ${point.percentage}%`}
+                              />
+                              <span className={`text-[10px] ${index === dailyProgressTrend.length - 1 ? 'text-blue-600 dark:text-blue-300 font-semibold' : 'text-gray-400 dark:text-slate-500'}`}>
+                                {point.label}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
+                    <FocusTip habits={habits} viewDate={habitViewDate} />
+                  </>
+                ) : null}
+              </div>
+
+
+              <div className={`order-2 md:order-1 ${trackerView === 'list' ? 'md:col-span-2' : 'md:col-span-3'}`}>
+
+                {/* Conditional View Rendering */}
+                {trackerView === 'list' ? (
+                  <HabitList
+                    habits={habits}
+                    onUpdateStatus={updateHabitStatus}
+                    onAddHabit={handleAddHabit}
+                    onEditHabit={handleEditHabit}
+                    onDeleteHabit={deleteHabit}
+                    onReorderHabits={reorderHabits}
+                    isTransparent={wallpaper !== 'none'}
+                    viewDate={habitViewDate}
+                    onViewDateChange={setHabitViewDate}
+                  />
+                ) : (
+                  <div className={`rounded-2xl p-6 ${wallpaper !== 'none'
+                    ? 'bg-white/80 dark:bg-[#0F141D]/85 backdrop-blur-xl border border-white/30 dark:border-[#1F2733]'
+                    : 'bg-white dark:bg-[#0F141D] border border-gray-100 dark:border-[#1F2733]'
+                    } shadow-sm`}>
+                    <RadialSchedule
+                      timeBlocks={timeBlocks}
+                      selectedDate={habitViewDate}
+                      onAddBlock={handleAddTimeBlock}
+                      onEditBlock={handleEditTimeBlock}
+                      onDeleteBlock={handleDeleteTimeBlock}
+                      externalAddTrigger={radialAddTrigger}
+                      showAddButton={true}
+                    />
                   </div>
                 )}
               </div>
-
-
-              <div className={`rounded-xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm transition-colors ${(activeTab === 'tracker' && wallpaper !== 'none')
-                ? 'bg-white/60 dark:bg-black/60 backdrop-blur-xl border-white/20 dark:border-white/10'
-                : 'bg-white dark:bg-gray-900'
-                }`}>
-                <h3 className="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-                  <BarChart2 size={18} className="text-gray-400" />
-                  Quick Stats
-                </h3>
-
-                <div className="space-y-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">Active Habits</span>
-                    <span className="font-medium text-gray-900 dark:text-gray-200">{habits.length}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">Perfect Streak</span>
-                    <span className="font-medium text-emerald-500 dark:text-emerald-400">
-                      {perfectStreak} days
-                    </span>
-                  </div>
-                  <button onClick={() => setActiveTab('analytics')} className="w-full mt-2 py-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
-                    View Full Analytics
-                  </button>
-                </div>
-              </div>
-
-              {/* AI Coach Card (Moved to Sidebar) */}
-              <button
-                onClick={() => setIsChatOpen(true)}
-                className="w-full p-4 rounded-xl border transition-all flex items-center justify-between group hover:shadow-md bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-gray-200 dark:border-gray-700">
-                    <img
-                      src={COACH_PERSONAS[selectedPersona].avatar}
-                      alt={COACH_PERSONAS[selectedPersona].name}
-                      className="w-full h-full object-cover scale-125"
-                    />
-                  </div>
-                  <div className="text-left">
-                    <span className="font-semibold text-gray-800 dark:text-white block">{COACH_PERSONAS[selectedPersona].name}</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Chat for personalized advice</span>
-                  </div>
-                </div>
-                <MessageCircle size={20} className="text-gray-400 dark:text-gray-500 group-hover:scale-110 transition-transform" />
-              </button>
-            </div>
-
-
-            <div className="order-1 md:order-1 md:col-span-2">
-
-
-              <HabitList
-                habits={habits}
-                onUpdateStatus={updateHabitStatus}
-                onAddHabit={handleAddHabit}
-                onEditHabit={handleEditHabit}
-                onDeleteHabit={deleteHabit}
-                onReorderHabits={reorderHabits}
-                isTransparent={wallpaper !== 'none'}
-              />
             </div>
           </div>
         ) : activeTab === 'analytics' ? (
@@ -1725,7 +1859,7 @@ const App: React.FC = () => {
             challenges={challenges}
             habits={habits}
             userId={user?.uid || 'guest'}
-            userName={user?.email?.split('@')[0] || 'Guest'}
+            userName={effectiveUserName || 'Guest'}
             onCreateChallenge={(challenge) => {
               // Check if habit needs to be created
               const habitExists = habits.some(h => h.id === challenge.habitId);
@@ -1834,24 +1968,22 @@ const App: React.FC = () => {
               />
             )}
 
-            {activeTab === 'recovery' && (
-              <MuscleRecoveryTab
-                workoutLogs={workoutLogs}
-                onAddWorkout={handleAddWorkout}
-                onDeleteWorkout={handleDeleteWorkout}
-                onUpdateWorkout={handleUpdateWorkout}
-                trainingProgram={trainingProgram}
-                onProgramChange={setTrainingProgram}
-              />
+            {activeTab === 'dna' && (
+              <div className="max-w-5xl mx-auto">
+                <HabitDNA
+                  habits={habits}
+                  dnaProfile={dnaProfile}
+                  onUpdateProfile={setDnaProfile}
+                />
+              </div>
             )}
-          </>
-        )
-        }
 
-      </main >
+          </>
+        )}
+      </main>
 
       {/* Settings/Shortcuts Sidebar */}
-      < SettingsSidebar
+      <SettingsSidebar
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         currentWallpaper={wallpaper}
@@ -1859,7 +1991,10 @@ const App: React.FC = () => {
         activeTab={activeTab}
         onSwitchTab={(t) => setActiveTab(t as any)}
         appMode={appMode}
-        onSetAppMode={setAppMode}
+
+        onLogout={user ? logout : undefined}
+        profileName={profileName}
+        onProfileNameChange={setProfileName}
       />
 
       {/* Badge Notification */}
@@ -1887,14 +2022,17 @@ const App: React.FC = () => {
         )
       }
 
-      {/* AI Coach Chat Modal */}
-      <AICoachChat
-        habits={habits}
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-        selectedPersona={selectedPersona}
-        onSelectPersona={setSelectedPersona}
-      />
+      {/* AI Coach Chat Modal — only visible on Tracker tab */}
+      {activeTab === 'tracker' && (
+        <AICoachChat
+          habits={habits}
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          onOpen={() => setIsChatOpen(true)}
+          selectedPersona={selectedPersona}
+          onSelectPersona={setSelectedPersona}
+        />
+      )}
 
       <VercelAnalytics />
     </div >

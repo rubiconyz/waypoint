@@ -45,10 +45,10 @@ export const Badges: React.FC<BadgesProps> = ({ habits, badgeProgress, totalHabi
     return (
         <div className="space-y-8 animate-fade-in">
             <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Achievement Badges</h2>
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100">Achievement Badges</h2>
                 <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30 rounded-lg border border-yellow-200 dark:border-yellow-800">
                     <Award className="text-yellow-600 dark:text-yellow-400" size={20} />
-                    <span className="font-semibold text-gray-900 dark:text-white">
+                    <span className="font-semibold text-gray-900 dark:text-slate-100">
                         {unlockedCount}/{BADGES.length}
                     </span>
                 </div>
@@ -63,15 +63,15 @@ export const Badges: React.FC<BadgesProps> = ({ habits, badgeProgress, totalHabi
                     return (
                         <div
                             key={category}
-                            className="bg-white dark:bg-gray-900 p-4 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm"
+                            className="bg-white dark:bg-[#0F141D] p-4 rounded-xl border border-gray-200 dark:border-[#1F2733] shadow-sm"
                         >
                             <div className="flex items-center gap-2 mb-2">
                                 <Icon className="text-gray-400" size={18} />
-                                <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                <h3 className="text-sm font-medium text-gray-600 dark:text-slate-400">
                                     {categoryTitles[category as keyof typeof categoryTitles]}
                                 </h3>
                             </div>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                                 {unlocked}/{badges.length}
                             </p>
                         </div>
@@ -88,8 +88,8 @@ export const Badges: React.FC<BadgesProps> = ({ habits, badgeProgress, totalHabi
                 return (
                     <div key={category}>
                         <div className="flex items-center gap-2 mb-4">
-                            <Icon className="text-gray-500 dark:text-gray-400" size={20} />
-                            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                            <Icon className="text-gray-500 dark:text-slate-400" size={20} />
+                            <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-100">
                                 {categoryTitles[category as keyof typeof categoryTitles]}
                             </h3>
                         </div>
@@ -104,12 +104,12 @@ export const Badges: React.FC<BadgesProps> = ({ habits, badgeProgress, totalHabi
             })}
 
             {unlockedCount === 0 && (
-                <div className="text-center py-12 bg-gray-50 dark:bg-gray-900 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+                <div className="text-center py-12 bg-gray-50 dark:bg-[#0F141D] rounded-xl border border-dashed border-gray-300 dark:border-[#2A3444]">
                     <Award className="mx-auto text-gray-300 dark:text-gray-600 mb-4" size={48} />
-                    <p className="text-gray-500 dark:text-gray-400 text-lg font-medium mb-2">
+                    <p className="text-gray-500 dark:text-slate-400 text-lg font-medium mb-2">
                         No badges yet!
                     </p>
-                    <p className="text-gray-400 dark:text-gray-500 text-sm">
+                    <p className="text-gray-400 dark:text-slate-500 text-sm">
                         Complete habits and build streaks to unlock achievements
                     </p>
                 </div>

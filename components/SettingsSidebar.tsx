@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Command, Moon, Plus, LayoutDashboard, BarChart2, Award, Mountain, Check, Palette, Languages } from 'lucide-react';
+import { X, Command, Moon, Plus, LayoutDashboard, BarChart2, Award, Mountain, Check, Palette, Languages, LogOut } from 'lucide-react';
 
 interface SettingsSidebarProps {
     isOpen: boolean;
@@ -9,7 +9,10 @@ interface SettingsSidebarProps {
     activeTab?: string;
     onSwitchTab?: (tab: string) => void;
     appMode?: 'habits' | 'languages';
-    onSetAppMode?: (mode: 'habits' | 'languages') => void;
+
+    onLogout?: () => void;
+    profileName?: string;
+    onProfileNameChange?: (name: string) => void;
 }
 
 export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
@@ -20,7 +23,10 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
     activeTab,
     onSwitchTab,
     appMode = 'habits',
-    onSetAppMode
+
+    onLogout,
+    profileName = '',
+    onProfileNameChange
 }) => {
     // Determine modifier key based on OS
     const isMac = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
@@ -30,8 +36,8 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
         { id: 'tracker', label: 'Tracker', icon: <LayoutDashboard size={18} /> },
         { id: 'analytics', label: 'Analytics', icon: <BarChart2 size={18} /> },
         { id: 'badges', label: 'Badges', icon: <Award size={18} /> },
-        { id: 'challenges', label: 'Challenges', icon: <Mountain size={18} /> }, // Using Mountain explicitly or Users if preferred? reusing import
-        { id: 'mountain', label: 'Mountain', icon: <Mountain size={18} /> }
+        { id: 'challenges', label: 'Challenges', icon: <Mountain size={18} /> },
+        { id: 'mountain', label: 'Progress', icon: <Mountain size={18} /> }
     ];
 
     const WALLPAPERS = [
@@ -72,54 +78,26 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                     </div>
 
                     <div className="space-y-8 overflow-y-auto flex-1">
-
-                        {/* Domain Switcher */}
-                        {onSetAppMode && (
+                        {onProfileNameChange && (
                             <div>
-                                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                    Switch Platform
+                                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                                    Profile
                                 </h3>
-                                <div className="grid grid-cols-2 gap-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
-                                    <button
-                                        onClick={() => {
-                                            onSetAppMode('habits');
-                                            if (onSwitchTab) onSwitchTab('tracker');
-                                        }}
-                                        className={`py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${appMode === 'habits'
-                                            ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                                            }`}
-                                    >
-                                        <Check size={16} />
-                                        Habits
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            onSetAppMode('languages');
-                                            if (onSwitchTab) onSwitchTab('immersion');
-                                        }}
-                                        className={`py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${appMode === 'languages'
-                                            ? 'bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-sm'
-                                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                                            }`}
-                                    >
-                                        {/* Need to import Languages from lucide-react if not already available in scope, but wait, it is imported? Checking file content... No Languages in import list at top */}
-                                        {/* Let's use generic for now or fix imports next step? Actually I should check line 2.
-                                        Line 2: import { X, Command, Moon, Plus, LayoutDashboard, BarChart2, Award, Mountain, Check, Palette } ... Languages is MISSING.
-                                        I will fix import in a separate step or just assume I can edit imports?
-                                        Warning: `replace_file_content` is a single contiguous block.
-                                        I will use `Languages` here but I must update the import too.
-                                        Ah, I can't edit imports AND this block in one tool call unless I replace the whole file or a huge chunk.
-                                        I'll stick to replacing this block and adding a TODO or immediately following up.
-                                        Actually, I can use a generic icon available like Globe? or just Text. Check is available.
-                                        Let's assume I will fix imports right after.
-                                         */}
-                                        <Languages size={16} />
-                                        <span>Languages</span>
-                                    </button>
-                                </div>
+                                <label className="block text-sm text-gray-600 dark:text-slate-300 mb-2">
+                                    Display name
+                                </label>
+                                <input
+                                    type="text"
+                                    value={profileName}
+                                    onChange={(event) => onProfileNameChange(event.target.value)}
+                                    maxLength={24}
+                                    placeholder="Your name"
+                                    className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#121821] border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                                />
                             </div>
                         )}
+
+
 
                         {/* Mobile Navigation (Hidden on Desktop) */}
                         {onSwitchTab && activeTab && (
@@ -200,6 +178,8 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                             </div>
                         )}
 
+
+
                         {/* Navigation Section */}
                         {appMode === 'habits' && (
                             <div className="hidden md:block">
@@ -222,18 +202,26 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
                                     />
                                     <ShortcutItem
                                         keys={[modKey, '4']}
-                                        label="Mountain Tab"
+                                        label="Progress Tab"
                                         icon={<Mountain size={16} />}
                                     />
                                 </div>
                             </div>
                         )}
 
-                        {appMode === 'habits' && (
-                            <div className="hidden md:block mt-8 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
-                                <p className="text-sm text-indigo-700 dark:text-indigo-300">
-                                    Tip: Shortcuts work anywhere in the app!
-                                </p>
+                        {/* Logout Section (Moved here) */}
+                        {onLogout && (
+                            <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800">
+                                <button
+                                    onClick={() => {
+                                        onLogout();
+                                        onClose();
+                                    }}
+                                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-gray-100 dark:bg-[#121821] text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-[#1A2433] transition-colors"
+                                >
+                                    <span className="text-sm font-medium">Logout</span>
+                                    <LogOut size={16} />
+                                </button>
                             </div>
                         )}
                     </div>

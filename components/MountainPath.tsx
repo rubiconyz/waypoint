@@ -177,7 +177,7 @@ export const MountainPath: React.FC<MountainPathProps> = ({ participants, curren
     return (
         <div
             ref={containerRef}
-            className="relative w-full rounded-3xl overflow-hidden bg-gray-100 shadow-inner border border-gray-200 dark:border-gray-800"
+            className="relative w-full rounded-3xl overflow-hidden bg-gray-100 dark:bg-[#0F141D] shadow-inner border border-gray-200 dark:border-[#1F2733]"
             style={{ aspectRatio: `${MOUNTAIN_WIDTH}/${MOUNTAIN_HEIGHT}` }}
         >
             {/* Mountain Background */}

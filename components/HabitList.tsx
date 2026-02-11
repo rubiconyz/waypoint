@@ -3,6 +3,7 @@ import { Timer } from './Timer';
 
 import { Habit, HabitFrequency, AspectRatio, ImageSize } from '../types';
 import { Plus, Flame, Calendar, Check, X, MoreVertical, Trash2, Pencil, Timer as TimerIcon, Play, Pause, Square, SkipForward, BarChart2, PieChart, Star, Languages, Droplets, Moon, Flower2, Footprints, Coffee, BookOpen, Dumbbell, Award, GripVertical, Brain, Heart, Book, Briefcase, Pin, ChevronLeft, ChevronRight, Clock, MessageCircle } from 'lucide-react';
+import { EllipsisVerticalIcon, PencilSquareIcon, TrashIcon, ClockIcon, FireIcon, StarIcon } from '@heroicons/react/24/outline';
 import { HABIT_CATEGORIES, DAY_ABBREVIATIONS } from '../constants';
 import { getLocalDateString, parseLocalDate, getWeekKey } from '../utils/dateUtils';
 
@@ -16,6 +17,8 @@ interface HabitListProps {
   onDeleteHabit: (id: string) => void;
   onReorderHabits: (reorderedHabits: Habit[]) => void;
   isTransparent?: boolean;
+  viewDate: Date;
+  onViewDateChange: (date: Date) => void;
 }
 
 const CATEGORIES: string[] = [...HABIT_CATEGORIES];
@@ -23,13 +26,13 @@ const DAYS: string[] = [...DAY_ABBREVIATIONS];
 
 // Category icon mapping (Lucide icons)
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  'Fitness': <Dumbbell size={18} className="text-orange-500" />,
-  'Learning': <BookOpen size={18} className="text-blue-500" />,
-  'Mindfulness': <Brain size={18} className="text-purple-500" />,
-  'Health': <Heart size={18} className="text-red-500" />,
-  'Reading': <Book size={18} className="text-emerald-500" />,
-  'Work': <Briefcase size={18} className="text-amber-800" />,
-  'Other': <Star size={18} className="text-yellow-500" />
+  'Fitness': <Dumbbell className="w-5 h-5 text-orange-500" />,
+  'Learning': <BookOpen className="w-5 h-5 text-blue-500" />,
+  'Mindfulness': <Brain className="w-5 h-5 text-purple-500" />,
+  'Health': <Heart className="w-5 h-5 text-red-500" />,
+  'Reading': <Book className="w-5 h-5 text-emerald-500" />,
+  'Work': <Briefcase className="w-5 h-5 text-amber-500" />,
+  'Other': <Star className="w-5 h-5 text-yellow-500" />
 };
 
 export const HabitList: React.FC<HabitListProps> = ({
@@ -39,7 +42,9 @@ export const HabitList: React.FC<HabitListProps> = ({
   onEditHabit,
   onDeleteHabit,
   onReorderHabits,
-  isTransparent
+  isTransparent,
+  viewDate,
+  onViewDateChange
 }) => {
   // Add Habit State
   const [isAdding, setIsAdding] = useState(false);
@@ -82,8 +87,8 @@ export const HabitList: React.FC<HabitListProps> = ({
     }
   }, [stopwatchHabitId]);
 
-  // Date Navigation State
-  const [viewDate, setViewDate] = useState(new Date());
+  // Date Navigation State - passed from parent
+  const setViewDate = onViewDateChange;
 
   const viewDateString = getLocalDateString(viewDate);
   const today = getLocalDateString(new Date()); // Keep 'today' for comparison
@@ -199,7 +204,7 @@ export const HabitList: React.FC<HabitListProps> = ({
           days: editFrequencyType === 'custom' ? editCustomDays : [],
           repeatTarget: editFrequencyType === 'weekly' ? editRepeatTarget : undefined
         },
-        ...(duration !== undefined && { targetDuration: duration }),
+        targetDuration: duration,
         microSteps: editMicroSteps
       });
       setEditingId(null);
@@ -230,21 +235,23 @@ export const HabitList: React.FC<HabitListProps> = ({
   };
 
 
+
+
   return (
     <div className="space-y-6 relative">
       {/* Date Navigation Header */}
-      <div className={`flex items-center justify-between p-4 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm transition-all ${isTransparent
+      <div className={`flex items-center justify-between p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm transition-all ${isTransparent
         ? 'bg-white/60 dark:bg-black/60 backdrop-blur-xl border-white/20 dark:border-white/10'
-        : 'bg-white/80 dark:bg-gray-900/80 backdrop-blur-md'
+        : 'bg-white/80 dark:bg-[#0F141D]/90 backdrop-blur-md dark:border-[#1F2733]'
         }`}>
         <button
           onClick={handlePrevDay}
-          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-gray-500 transition-colors"
+          className="p-2 hover:bg-gray-100 dark:hover:bg-[#121821] rounded-lg text-gray-500 dark:text-slate-400 transition-colors"
         >
           <ChevronLeft size={20} />
         </button>
 
-        <div className="font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+        <div className="font-semibold text-gray-800 dark:text-slate-100 flex items-center gap-2">
           {!isToday && <span className="text-xs font-normal px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-full">Viewing History</span>}
           {getDisplayDate()}
         </div>
@@ -252,37 +259,19 @@ export const HabitList: React.FC<HabitListProps> = ({
         <button
           onClick={handleNextDay}
           disabled={isToday}
-          className={`p - 2 rounded - lg transition - colors ${isToday
-            ? 'text-gray-300 dark:text-gray-700 cursor-not-allowed'
-            : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500'
-            } `}
+          className={`p-2 rounded-lg transition-colors ${isToday
+            ? 'text-gray-300 dark:text-slate-700 cursor-not-allowed'
+            : 'hover:bg-gray-100 dark:hover:bg-[#121821] text-gray-500 dark:text-slate-400'
+            }`}
         >
           <ChevronRight size={20} />
         </button>
       </div>
 
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">My Habits</h2>
-        {isToday && (
-          <button
-            id="btn-new-habit"
-            onClick={() => setIsAdding(!isAdding)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors shadow-sm"
-          >
-            <Plus size={20} />
-            <span>New Habit</span>
-          </button>
-        )}
-      </div>
-
-
-
-
-
       {isToday && isAdding && (
-        <form onSubmit={handleAdd} className={`p-5 rounded-3xl shadow-lg border border-gray-100 dark:border-gray-800 mb-6 animate-fade-in transition-all overflow-hidden ${isTransparent
+        <form onSubmit={handleAdd} className={`p-5 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-800 mb-6 animate-fade-in transition-all overflow-hidden ${isTransparent
           ? 'bg-white/60 dark:bg-black/60 backdrop-blur-xl border-white/20 dark:border-white/10'
-          : 'bg-white/90 dark:bg-gray-900/90 backdrop-blur-md'
+          : 'bg-white/90 dark:bg-[#0F141D]/95 backdrop-blur-md dark:border-[#1F2733]'
           }`}>
           <div className="flex flex-col gap-6">
             {/* Title Input */}
@@ -292,44 +281,45 @@ export const HabitList: React.FC<HabitListProps> = ({
                 placeholder="What do you want to track?"
                 value={newHabitTitle}
                 onChange={(e) => setNewHabitTitle(e.target.value)}
-                className="w-full text-xl px-4 py-3 border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-900 dark:text-white rounded-2xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all placeholder-gray-400 font-semibold"
+                className="w-full text-xl px-4 py-3 border border-gray-200 dark:border-[#2A3444] bg-white/50 dark:bg-[#121821] text-gray-900 dark:text-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all placeholder-gray-400 dark:placeholder-slate-500 font-semibold"
                 autoFocus
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Left Column: Category & Frequency */}
-              <div className="space-y-5">
+              <div className="space-y-4">
+                {/* Category Selection */}
                 <div>
-                  <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 block">Category</label>
-                  <div className="flex gap-2 overflow-x-auto scrollbar-thin pb-1">
+                  <label className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2.5 block">Category</label>
+                  <div className="flex gap-2 flex-wrap">
                     {CATEGORIES.map(cat => (
                       <button
                         key={cat}
                         type="button"
                         onClick={() => setNewHabitCategory(cat)}
-                        className={`px-3 py-1.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all border ${newHabitCategory === cat
-                          ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 shadow-sm'
-                          : 'bg-transparent text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${newHabitCategory === cat
+                          ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-md'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                           }`}
                       >
-                        {cat}
+                        <span>{cat}</span>
                       </button>
                     ))}
                   </div>
                 </div>
 
+                {/* Frequency Selection */}
                 <div>
-                  <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 block">Frequency</label>
-                  <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl inline-flex shadow-inner">
+                  <label className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2.5 block">Frequency</label>
+                  <div className="flex gap-1 bg-gray-100 dark:bg-[#121821] p-1 rounded-xl inline-flex mb-2">
                     {(['daily', 'weekly', 'custom'] as const).map(type => (
                       <button
                         key={type}
                         type="button"
                         onClick={() => setNewFrequencyType(type)}
-                        className={`px-4 py-1.5 rounded-lg text-sm font-medium capitalize transition-all ${newFrequencyType === type
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${newFrequencyType === type
                           ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                          : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                           }`}
                       >
                         {type}
@@ -338,10 +328,10 @@ export const HabitList: React.FC<HabitListProps> = ({
                   </div>
 
                   {newFrequencyType === 'custom' && (
-                    <div className="flex gap-2 mt-3 animate-fade-in pl-1">
+                    <div className="flex gap-2 flex-wrap animate-fade-in mt-2">
                       {DAYS.map((d, i) => (
                         <button
-                          key={i}
+                          key={d}
                           type="button"
                           onClick={() => toggleDay(i)}
                           className={`w-9 h-9 rounded-xl text-xs font-bold flex items-center justify-center transition-all ${newCustomDays.includes(i)
@@ -357,11 +347,11 @@ export const HabitList: React.FC<HabitListProps> = ({
 
                   {newFrequencyType === 'weekly' && (
                     <div className="flex items-center gap-3 animate-fade-in mt-3 pl-1">
-                      <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Target days/week:</span>
-                      <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-1">
-                        <button type="button" onClick={() => setNewRepeatTarget(Math.max(1, newRepeatTarget - 1))} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 font-bold transition-colors w-8">-</button>
-                        <span className="font-mono font-bold text-gray-900 dark:text-white w-6 text-center">{newRepeatTarget}</span>
-                        <button type="button" onClick={() => setNewRepeatTarget(Math.min(7, newRepeatTarget + 1))} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 font-bold transition-colors w-8">+</button>
+                      <span className="text-sm text-gray-600 dark:text-slate-400 font-medium">Target days/week:</span>
+                      <div className="flex items-center gap-2 bg-white dark:bg-[#121821] rounded-xl border border-gray-200 dark:border-[#2A3444] p-1">
+                        <button type="button" onClick={() => setNewRepeatTarget(Math.max(1, newRepeatTarget - 1))} className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#1A2433] rounded-lg text-gray-500 font-bold transition-colors w-8">-</button>
+                        <span className="font-mono font-bold text-gray-900 dark:text-slate-100 w-6 text-center">{newRepeatTarget}</span>
+                        <button type="button" onClick={() => setNewRepeatTarget(Math.min(7, newRepeatTarget + 1))} className="p-1.5 hover:bg-gray-100 dark:hover:bg-[#1A2433] rounded-lg text-gray-500 font-bold transition-colors w-8">+</button>
                       </div>
                     </div>
                   )}
@@ -371,7 +361,7 @@ export const HabitList: React.FC<HabitListProps> = ({
               {/* Right Column: Extras */}
               <div className="space-y-5">
                 <div>
-                  <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 block">
+                  <label className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2.5 block">
                     Target Duration (Optional)
                   </label>
                   <div className="relative">
@@ -381,38 +371,18 @@ export const HabitList: React.FC<HabitListProps> = ({
                       value={newTargetDuration}
                       onChange={(e) => setNewTargetDuration(e.target.value)}
                       placeholder="e.g. 30"
-                      className="w-full pl-10 pr-20 py-2.5 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl text-sm focus:ring-2 focus:ring-blue-500/50 outline-none transition-all appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-full pl-10 pr-20 py-2.5 border border-gray-200 dark:border-[#2A3444] bg-white dark:bg-[#121821] text-gray-900 dark:text-slate-100 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/50 outline-none transition-all appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <Clock size={16} className="absolute left-3.5 top-3 text-gray-400" />
-
-                    {/* Unit Label */}
                     <span className="absolute right-9 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-medium pointer-events-none">min</span>
-
-                    {/* Custom Spinners */}
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col border-l border-gray-100 dark:border-gray-700 pl-1">
-                      <button
-                        type="button"
-                        onClick={() => setNewTargetDuration(String((parseInt(newTargetDuration || '0') + 5)))}
-                        className="p-0.5 hover:text-blue-500 text-gray-400 transition-colors"
-                      >
-                        <ChevronLeft size={10} className="rotate-90" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setNewTargetDuration(String(Math.max(0, (parseInt(newTargetDuration || '0') - 5))))}
-                        className="p-0.5 hover:text-blue-500 text-gray-400 transition-colors"
-                      >
-                        <ChevronLeft size={10} className="-rotate-90" />
-                      </button>
-                    </div>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-2">
+                  <label className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2.5 flex items-center gap-2">
                     Micro-steps
                   </label>
-                  <div className="space-y-2 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
+                  <div className="space-y-2 bg-gray-50 dark:bg-[#121821] p-3 rounded-xl border border-gray-100 dark:border-[#1F2733]">
                     {newMicroSteps.map((step, idx) => (
                       <div key={step.id} className="flex gap-2 items-center group">
                         <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
@@ -448,69 +418,45 @@ export const HabitList: React.FC<HabitListProps> = ({
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800 mt-2">
+            {/* Form Actions */}
+            <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setIsAdding(false)}
-                className="px-5 py-2.5 text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+                className="flex-1 py-3 text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-[#121821] rounded-xl font-bold transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-6 py-2.5 text-sm font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-500/30 flex items-center gap-2"
+                className="flex-[2] py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
-                <Plus size={18} strokeWidth={2.5} /> Create Habit
+                Create Habit
               </button>
             </div>
           </div>
         </form>
       )}
 
+      {/* Habit List */}
       <div className="space-y-3">
         {habits.length === 0 ? (
-          <div className={`text-center py-8 rounded-3xl border border-dashed border-gray-300 dark:border-gray-700 transition-all ${isTransparent
-            ? 'bg-white/20 dark:bg-black/20 backdrop-blur-md'
-            : 'bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm'
-            }`}>
-            <p className="text-gray-500 dark:text-gray-400 mb-6 font-medium">No habits yet? Pick a starter pack:</p>
-            <div id="empty-state-grid" className="grid grid-cols-2 gap-3 px-4 max-w-md mx-auto">
-              <button
-                onClick={() => onAddHabit('Drink Water', 'Health', { type: 'daily', days: [] })}
-                className="p-4 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-xl hover:scale-105 transition-transform border border-blue-100 dark:border-blue-800 flex flex-col items-center gap-2"
-              >
-                <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-full"><Droplets size={20} /></div>
-                <span className="font-semibold text-sm">Hydrate</span>
-              </button>
-
-              <button
-                onClick={() => onAddHabit('Read 15 mins', 'Learning', { type: 'daily', days: [] }, 15)}
-                className="p-4 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-xl hover:scale-105 transition-transform border border-emerald-100 dark:border-emerald-800 flex flex-col items-center gap-2"
-              >
-                <div className="p-2 bg-emerald-100 dark:bg-emerald-800 rounded-full"><BookOpen size={20} /></div>
-                <span className="font-semibold text-sm">Read</span>
-              </button>
-
-              <button
-                onClick={() => onAddHabit('Meditate', 'Mindfulness', { type: 'daily', days: [] }, 10)}
-                className="p-4 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-xl hover:scale-105 transition-transform border border-purple-100 dark:border-purple-800 flex flex-col items-center gap-2"
-              >
-                <div className="p-2 bg-purple-100 dark:bg-purple-800 rounded-full"><Flower2 size={20} /></div>
-                <span className="font-semibold text-sm">Zen</span>
-              </button>
-
-              <button
-                onClick={() => onAddHabit('Go for a Run', 'Fitness', { type: 'weekly', days: [], repeatTarget: 3 })}
-                className="p-4 bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-xl hover:scale-105 transition-transform border border-orange-100 dark:border-orange-800 flex flex-col items-center gap-2"
-              >
-                <div className="p-2 bg-orange-100 dark:bg-orange-800 rounded-full"><Footprints size={20} /></div>
-                <span className="font-semibold text-sm">Run 3x</span>
-              </button>
+          <div className="text-center py-12 bg-white/50 dark:bg-[#0F141D]/70 rounded-2xl border border-dashed border-gray-200 dark:border-[#1F2733]">
+            <div className="w-16 h-16 bg-gray-100 dark:bg-[#121821] rounded-full flex items-center justify-center mx-auto mb-4">
+              <Plus size={32} className="text-gray-400" />
             </div>
-
+            <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-2">No habits yet</h3>
+            <p className="text-gray-500 dark:text-slate-400 max-w-xs mx-auto mb-6">Start building your streak by creating your first habit!</p>
+            <button
+              onClick={() => setIsAdding(true)}
+              className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition-colors"
+            >
+              Create Habit
+            </button>
           </div>
         ) : (
-          habits.map((habit, index) => {
+          <>
+            {habits.map((habit, index) => {
             // Logic: Hide habit if looking at a date before it was created
             if (habit.createdAt) {
               const createdDate = new Date(habit.createdAt);
@@ -528,11 +474,10 @@ export const HabitList: React.FC<HabitListProps> = ({
             // Calculate weekly progress if applicable
             let weeklyProgress = null;
             if (habit.frequency.type === 'weekly' && habit.frequency.repeatTarget) {
-              const currentWeekKey = getWeekKey(viewDate); // Use viewDate for weekly calculation context
+              const currentWeekKey = getWeekKey(viewDate);
               let count = 0;
               Object.keys(habit.history).forEach(dateStr => {
                 if (habit.history[dateStr] === 'completed') {
-                  // FIX: Parse local date string correctly
                   const localDate = parseLocalDate(dateStr);
                   if (getWeekKey(localDate) === currentWeekKey) {
                     count++;
@@ -544,8 +489,8 @@ export const HabitList: React.FC<HabitListProps> = ({
 
             if (isEditing) {
               return (
-                <div key={habit.id} className="p-5 bg-white dark:bg-gray-900 rounded-3xl border-2 border-blue-500 shadow-lg transition-all animate-fade-in relative z-10">
-                  <div className="flex flex-col gap-5">
+                <div key={habit.id} className="p-5 bg-white dark:bg-[#0F141D] rounded-2xl border-2 border-blue-500 shadow-lg transition-all animate-fade-in relative z-10">
+                  <div className="flex flex-col gap-6">
                     <div className="flex justify-between items-center">
                       <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Editing Habit</h3>
                       <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
@@ -553,49 +498,50 @@ export const HabitList: React.FC<HabitListProps> = ({
                       </button>
                     </div>
 
-                    <input
-                      type="text"
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      className="w-full text-lg font-semibold px-0 py-2 bg-transparent border-b-2 border-gray-100 dark:border-gray-800 focus:border-blue-500 transition-colors outline-none text-gray-900 dark:text-white rounded-none"
-                      autoFocus
-                      placeholder="Habit name"
-                    />
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-4">
-                        {/* Category */}
                         <div>
-                          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 block">Category</label>
+                          <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 block">Title</label>
+                          <input
+                            type="text"
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className="w-full text-base font-semibold px-4 py-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
+                            autoFocus
+                            placeholder="Habit name"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 block">Category</label>
                           <div className="flex gap-2 flex-wrap">
                             {CATEGORIES.map(cat => (
                               <button
-                                key={cat}
+                                key={`edit-cat-${cat}`}
                                 type="button"
                                 onClick={() => setEditCategory(cat)}
-                                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors border ${editCategory === cat
-                                  ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
-                                  : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:bg-gray-100'
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${editCategory === cat
+                                  ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-md'
+                                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                                   }`}
                               >
-                                {cat}
+                                <span>{cat}</span>
                               </button>
                             ))}
                           </div>
                         </div>
 
-                        {/* Frequency */}
                         <div>
-                          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 block">Frequency</label>
-                          <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg inline-flex mb-2">
+                          <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 block">Frequency</label>
+                          <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl inline-flex mb-2">
                             {(['daily', 'weekly', 'custom'] as const).map(type => (
                               <button
-                                key={type}
+                                key={`edit-freq-${type}`}
                                 type="button"
                                 onClick={() => setEditFrequencyType(type)}
-                                className={`px-3 py-1 rounded text-xs font-medium capitalize transition-all ${editFrequencyType === type
+                                className={`px-4 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${editFrequencyType === type
                                   ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                                   }`}
                               >
                                 {type}
@@ -604,113 +550,105 @@ export const HabitList: React.FC<HabitListProps> = ({
                           </div>
 
                           {editFrequencyType === 'custom' && (
-                            <div className="flex gap-1.5 flex-wrap">
-                              {DAYS.map((d, i) => (
+                            <div className="flex gap-2 flex-wrap animate-fade-in mt-2">
+                              {DAYS.map((dayLabel, dayIndex) => (
                                 <button
-                                  key={i}
+                                  key={`edit-day-${dayLabel}`}
                                   type="button"
-                                  onClick={() => toggleEditDay(i)}
-                                  className={`w-7 h-7 rounded text-[10px] font-bold flex items-center justify-center transition-all ${editCustomDays.includes(i)
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'bg-gray-50 dark:bg-gray-800 text-gray-400 border border-gray-200 dark:border-gray-700'
+                                  onClick={() => toggleEditDay(dayIndex)}
+                                  className={`w-9 h-9 rounded-xl text-xs font-bold flex items-center justify-center transition-all ${editCustomDays.includes(dayIndex)
+                                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20 scale-105'
+                                    : 'bg-white dark:bg-gray-800 text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-indigo-300'
                                     }`}
                                 >
-                                  {d}
+                                  {dayLabel}
                                 </button>
                               ))}
                             </div>
                           )}
 
                           {editFrequencyType === 'weekly' && (
-                            <div className="flex items-center gap-2 mt-2">
-                              <span className="text-xs text-gray-500">Days/week:</span>
-                              <div className="flex items-center gap-1 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-                                <button type="button" onClick={() => setEditRepeatTarget(Math.max(1, editRepeatTarget - 1))} className="px-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-l text-gray-500 font-bold">-</button>
-                                <span className="text-xs font-mono font-bold w-4 text-center text-gray-900 dark:text-white">{editRepeatTarget}</span>
-                                <button type="button" onClick={() => setEditRepeatTarget(Math.min(7, editRepeatTarget + 1))} className="px-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-r text-gray-500 font-bold">+</button>
+                            <div className="flex items-center gap-3 animate-fade-in mt-3 pl-1">
+                              <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Target days/week:</span>
+                              <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-1">
+                                <button type="button" onClick={() => setEditRepeatTarget(Math.max(1, editRepeatTarget - 1))} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 font-bold transition-colors w-8">-</button>
+                                <span className="font-mono font-bold text-gray-900 dark:text-white w-6 text-center">{editRepeatTarget}</span>
+                                <button type="button" onClick={() => setEditRepeatTarget(Math.min(7, editRepeatTarget + 1))} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 font-bold transition-colors w-8">+</button>
                               </div>
                             </div>
                           )}
                         </div>
                       </div>
 
-                      <div className="space-y-4">
+                      <div className="space-y-5">
                         <div>
-                          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 block">Duration (min)</label>
+                          <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 block">
+                            Target Duration (Optional)
+                          </label>
                           <div className="relative">
                             <input
                               type="number"
+                              min="0"
                               value={editTargetDuration}
                               onChange={(e) => setEditTargetDuration(e.target.value)}
-                              className="w-full pl-8 pr-16 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                              placeholder="None"
+                              placeholder="e.g. 30"
+                              className="w-full pl-10 pr-20 py-2.5 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl text-sm focus:ring-2 focus:ring-blue-500/50 outline-none transition-all appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
-                            <Clock size={12} className="absolute left-2.5 top-2.5 text-gray-400" />
-
-                            <span className="absolute right-8 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-medium pointer-events-none">min</span>
-
-                            {/* Custom Spinners */}
-                            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex flex-col border-l border-gray-200 dark:border-gray-700 pl-0.5">
-                              <button
-                                type="button"
-                                onClick={() => setEditTargetDuration(String((parseInt(editTargetDuration || '0') + 5)))}
-                                className="hover:text-blue-500 text-gray-400 transition-colors"
-                              >
-                                <ChevronLeft size={8} className="rotate-90" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setEditTargetDuration(String(Math.max(0, (parseInt(editTargetDuration || '0') - 5))))}
-                                className="hover:text-blue-500 text-gray-400 transition-colors"
-                              >
-                                <ChevronLeft size={8} className="-rotate-90" />
-                              </button>
-                            </div>
+                            <Clock size={16} className="absolute left-3.5 top-3 text-gray-400" />
+                            <span className="absolute right-9 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-medium pointer-events-none">min</span>
                           </div>
                         </div>
 
                         <div>
-                          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 block">Micro-steps</label>
-                          <div className="bg-gray-50 dark:bg-gray-800/50 p-2 rounded-lg border border-gray-100 dark:border-gray-800 space-y-2">
+                          <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-2">
+                            Micro-steps
+                          </label>
+                          <div className="space-y-2 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
                             {editMicroSteps.map((step, idx) => (
-                              <div key={step.id} className="flex gap-2 items-center">
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                              <div key={step.id} className="flex gap-2 items-center group">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
                                 <input
                                   type="text"
                                   value={step.text}
                                   onChange={(e) => {
-                                    const newSteps = [...editMicroSteps];
-                                    newSteps[idx].text = e.target.value;
-                                    setEditMicroSteps(newSteps);
+                                    const next = [...editMicroSteps];
+                                    next[idx].text = e.target.value;
+                                    setEditMicroSteps(next);
                                   }}
-                                  className="flex-1 min-w-0 bg-transparent text-sm text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 focus:border-emerald-500 outline-none pb-0.5"
+                                  className="flex-1 min-w-0 bg-transparent text-sm text-gray-900 dark:text-white border-b border-transparent focus:border-emerald-500 group-hover:border-gray-200 dark:group-hover:border-gray-700 outline-none transition-colors py-1"
+                                  placeholder={`Step ${idx + 1}`}
                                 />
-                                <button type="button" onClick={() => setEditMicroSteps(prev => prev.filter((_, i) => i !== idx))} className="text-gray-400 hover:text-red-500 shrink-0">
-                                  <X size={12} />
+                                <button
+                                  type="button"
+                                  onClick={() => setEditMicroSteps(prev => prev.filter((_, i) => i !== idx))}
+                                  className="text-gray-400 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                >
+                                  <X size={14} />
                                 </button>
                               </div>
                             ))}
                             <button
+                              type="button"
                               onClick={() => setEditMicroSteps([...editMicroSteps, { id: crypto.randomUUID(), text: '', completed: false }])}
-                              className="text-[10px] uppercase font-bold text-emerald-600 hover:underline flex items-center gap-1"
+                              className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1.5 mt-2 px-1"
                             >
-                              <Plus size={10} /> Add Step
+                              <Plus size={14} /> Add Micro-step
                             </button>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-3 mt-2 border-t border-gray-100 dark:border-gray-800">
+                    <div className="flex justify-end gap-3 pt-2">
                       <button
                         onClick={() => setEditingId(null)}
-                        className="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                        className="px-4 py-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={() => saveEditing(habit.id)}
-                        className="px-5 py-2 text-sm font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md shadow-blue-500/20 active:scale-95 transition-all"
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                       >
                         Save Changes
                       </button>
@@ -727,27 +665,19 @@ export const HabitList: React.FC<HabitListProps> = ({
                 onDragStart={(e) => {
                   setDraggedIndex(index);
                   e.dataTransfer.effectAllowed = 'move';
-                  // Set drag image to the row itself (browser default usually works well for row)
                 }}
                 onDragEnd={handleDragEnd}
                 onDragOver={(e) => handleDragOver(e, index)}
-                className={`flex items-center justify-between p-4 rounded-3xl border transition-all group relative cursor-grab active:cursor-grabbing ${isTransparent
-                  ? 'bg-white/60 dark:bg-black/60 backdrop-blur-xl border-white/20 dark:border-white/10'
-                  : 'bg-white/80 dark:bg-gray-900/80 backdrop-blur-md'
+                className={`flex items-center justify-between p-4 rounded-2xl border transition-all group relative cursor-grab active:cursor-grabbing ${isTransparent
+                  ? 'bg-white/60 dark:bg-[#0F141D]/85 backdrop-blur-xl border-white/20 dark:border-[#1F2733]'
+                  : 'bg-white dark:bg-[#0F141D] border-gray-100 dark:border-[#1F2733]'
                   } ${isDragging
                     ? 'opacity-50 scale-95'
-                    : 'hover:shadow-lg hover:border-indigo-200 dark:hover:border-indigo-800'
-                  } ${status === 'completed'
-                    ? 'border-green-200 dark:border-green-900 bg-green-50/30 dark:bg-green-900/10'
-                    : status === 'partial'
-                      ? 'border-yellow-200 dark:border-yellow-900 bg-yellow-50/30 dark:bg-yellow-900/10'
-                      : status === 'skipped'
-                        ? 'border-gray-200 dark:border-gray-700'
-                        : 'border-gray-200 dark:border-gray-800'
+                    : 'hover:border-gray-200 dark:hover:border-[#2A3444]'
                   }`}
               >
                 <div className="flex items-center gap-4 flex-1 min-w-0 mr-2">
-                  {/* Drag Handle (Visual Only) */}
+                  {/* Drag Handle */}
                   <div
                     className="text-gray-300 dark:text-gray-600 transition-colors flex-shrink-0"
                     title="Drag to reorder"
@@ -755,271 +685,145 @@ export const HabitList: React.FC<HabitListProps> = ({
                     <GripVertical size={18} />
                   </div>
 
+                  {/* Circle Checkbox */}
                   <button
                     onClick={() => onUpdateStatus(habit.id, viewDateString, status === 'completed' ? null : 'completed')}
-                    onContextMenu={(e) => handleContextMenu(e, habit.id)}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${status === 'completed'
-                      ? 'bg-green-500 text-white scale-110'
-                      : status === 'partial'
-                        ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 border-2 border-blue-500'
-                        : status === 'skipped'
-                          ? 'bg-gray-200 dark:bg-gray-700 text-gray-500'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-300 dark:text-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${status === 'completed'
+                      ? 'bg-green-500 border-green-500 text-white'
+                      : 'border-gray-300 dark:border-[#2A3444] text-transparent hover:border-gray-400 dark:hover:border-slate-500'
                       }`}
-                    title="Left click to complete, Right click for more options"
                   >
-                    {status === 'completed' && <Check size={18} />}
-                    {status === 'partial' && <PieChart size={18} />}
-                    {status === 'skipped' && <SkipForward size={18} />}
+                    {status === 'completed' && <Check size={16} strokeWidth={3} />}
                   </button>
 
                   <div className="min-w-0 flex-1">
-                    <h3 className={`font-medium transition-colors flex items-center gap-2 truncate ${status === 'completed'
-                      ? 'text-gray-400 dark:text-gray-500 line-through'
-                      : 'text-gray-800 dark:text-gray-200'
-                      }`}>
-                      <span className="flex-shrink-0">
-                        {(() => {
-                          const lowerTitle = habit.title.toLowerCase();
-                          // Language Learning -> Users 'Languages' icon
-                          if (['german', 'french', 'spanish', 'italian', 'japanese', 'chinese', 'korean', 'russian'].some(l => lowerTitle.includes(l))) {
-                            return <Languages size={18} className="text-indigo-500" />;
-                          }
-
-                          if (lowerTitle.includes('water') || lowerTitle.includes('drink')) return <Droplets size={18} className="text-blue-400" />;
-                          if (lowerTitle.includes('sleep') || lowerTitle.includes('bed')) return <Moon size={18} className="text-indigo-400" />;
-                          if (lowerTitle.includes('meditate') || lowerTitle.includes('yoga')) return <Flower2 size={18} className="text-pink-400" />;
-                          if (lowerTitle.includes('run') || lowerTitle.includes('walk')) return <Footprints size={18} className="text-orange-400" />;
-                          if (lowerTitle.includes('coffee')) return <Coffee size={18} className="text-amber-700" />;
-                          if (lowerTitle.includes('read')) return <BookOpen size={18} className="text-emerald-500" />;
-
-                          return CATEGORY_ICONS[habit.category] || <Star size={18} className="text-gray-400" />;
-                        })()}
-                      </span>
-                      <span className="truncate">{habit.title}</span>
-                    </h3>
-                    <p className="text-xs flex items-center gap-1 mt-0.5">
-                      <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-gray-600 dark:text-gray-400">
-                        {habit.category}
-                      </span>
-                      {habit.frequency.type === 'custom' && (
-                        <span className="text-gray-400 text-[10px] ml-1">
-                          {habit.frequency.days.map(d => DAYS[d]).join(' ')}
-                        </span>
-                      )}
-
-                      {/* Weekly Progress Badge */}
-                      {weeklyProgress && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-1 ${weeklyProgress.count >= weeklyProgress.target
-                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                          : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                    <div className="flex items-center gap-3">
+                      {/* Category Icon */}
+                      <div className="p-2.5 bg-gray-100 dark:bg-[#121821] rounded-2xl text-gray-400 dark:text-slate-400">
+                        {CATEGORY_ICONS[habit.category] || <StarIcon className="w-5 h-5" />}
+                      </div>
+                      <div>
+                        <h3 className={`font-semibold text-lg transition-colors truncate ${status === 'completed'
+                          ? 'text-gray-500 line-through decoration-gray-500' // Strikethrough for completed
+                          : 'text-gray-900 dark:text-slate-100'
                           }`}>
-                          <Dumbbell size={10} />
-                          {weeklyProgress.count}/{weeklyProgress.target}
+                          {habit.title}
+                        </h3>
+                        <span className="text-[10px] font-bold tracking-wider uppercase text-gray-500 dark:text-slate-500 bg-gray-100 dark:bg-[#121821] px-1.5 py-0.5 rounded">
+                          {habit.category}
                         </span>
-                      )}
-                    </p>
-                  </div>
-                </div>
+                      </div>
+                    </div>
 
-                <div className="flex items-center gap-1 sm:gap-3">
-                  <div className="flex items-center gap-0.5 sm:gap-1 text-orange-500 dark:text-orange-400 font-medium mr-1 sm:mr-2" title="Current streak">
-                    <Flame size={16} className="sm:w-[18px] sm:h-[18px]" />
-                    <span className="text-sm sm:text-base">{habit.streak}</span>
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    {/* Timer button - only show if habit has targetDuration */}
-                    {!!habit.targetDuration && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setStopwatchHabitId(habit.id);
-                        }}
-                        className="relative z-10 text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                        title={`Start ${habit.targetDuration} min timer`}
-                      >
-                        <TimerIcon size={18} />
-                      </button>
+                    {/* Micro-steps if any */}
+                    {habit.microSteps && habit.microSteps.length > 0 && (
+                      <div className="mt-2 text-xs text-gray-500 ml-9 flex gap-2 items-center">
+                        <span className="bg-gray-100 dark:bg-[#121821] px-2 py-0.5 rounded text-gray-400 dark:text-slate-400">
+                          <GripVertical size={10} className="inline mr-1" />
+                          {habit.microSteps.filter(s => s.completed).length}/{habit.microSteps.length}
+                        </span>
+                      </div>
                     )}
-
-                    {/* Desktop Actions (Hidden on Mobile) */}
-                    <div className="hidden sm:flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          startEditing(habit);
-                        }}
-                        className="relative z-10 text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                        title="Edit"
-                      >
-                        <Pencil size={18} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          onDeleteHabit(habit.id);
-                        }}
-                        className="relative z-10 text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-
-                    {/* Mobile Actions Menu (Visible on Mobile) */}
-                    <div className="sm:hidden relative">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setOpenMenuHabitId(openMenuHabitId === habit.id ? null : habit.id);
-                        }}
-                        className="relative z-10 text-gray-400 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                      >
-                        <MoreVertical size={18} />
-                      </button>
-
-                      {openMenuHabitId === habit.id && (
-                        <div className="absolute right-0 top-full mt-1 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-100 dark:border-gray-700 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startEditing(habit);
-                              setOpenMenuHabitId(null);
-                            }}
-                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
-                          >
-                            <Pencil size={14} /> Edit
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeleteHabit(habit.id);
-                              setOpenMenuHabitId(null);
-                            }}
-                            className="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
-                          >
-                            <Trash2 size={14} /> Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
                   </div>
                 </div>
 
-                {/* Micro-steps Checklist */}
-                {habit.microSteps && habit.microSteps.length > 0 && (
-                  <div className="mt-3 pl-2 border-l-2 border-gray-100 dark:border-gray-800 space-y-1.5 animate-fade-in">
-                    {habit.microSteps.map(step => (
-                      <div key={step.id} className="flex items-start gap-2 group">
+                <div className="flex items-center gap-4">
+                  {/* Streak */}
+                  <div className="flex items-center gap-1.5 text-orange-500 dark:text-orange-500/90 font-bold bg-orange-500/10 px-2 py-1 rounded-lg">
+                    <FireIcon className="w-4 h-4" />
+                    <span className="text-sm">{habit.streak}</span>
+                  </div>
+
+                  {/* Timer (if applicable) */}
+                  {!!habit.targetDuration && (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setStopwatchHabitId(habit.id);
+                      }}
+                      className="text-gray-400 hover:text-white p-1.5 bg-gray-100 dark:bg-[#121821] rounded-lg transition-colors"
+                    >
+                      <ClockIcon className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  {/* Actions Menu */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setOpenMenuHabitId(openMenuHabitId === habit.id ? null : habit.id);
+                      }}
+                      className="relative z-10 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1"
+                    >
+                      <EllipsisVerticalIcon className="w-5 h-5" />
+                    </button>
+
+                    {openMenuHabitId === habit.id && (
+                      <div className="absolute right-0 top-full mt-1 w-32 bg-[#1A1A1A] rounded-lg shadow-xl border border-white/10 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            const newSteps = habit.microSteps!.map(s =>
-                              s.id === step.id ? { ...s, completed: !s.completed } : s
-                            );
-                            onEditHabit(habit.id, { microSteps: newSteps });
+                            startEditing(habit);
+                            setOpenMenuHabitId(null);
                           }}
-                          className={`w-4 h-4 mt-0.5 rounded border flex items-center justify-center transition-all shrink-0 ${step.completed
-                            ? 'bg-blue-500 border-blue-500 text-white'
-                            : 'bg-transparent border-gray-300 dark:border-gray-600 hover:border-blue-400'
-                            }`}
+                          className="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/5 flex items-center gap-2"
                         >
-                          {step.completed && <Check size={10} strokeWidth={4} />}
+                          <PencilSquareIcon className="w-4 h-4" /> Edit
                         </button>
-                        <span className={`text-sm leading-tight break-words min-w-0 flex-1 transition-all ${step.completed
-                          ? 'text-gray-400 line-through dark:text-gray-500'
-                          : 'text-gray-600 dark:text-gray-300'
-                          }`}>
-                          {step.text}
-                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteHabit(habit.id);
+                            setOpenMenuHabitId(null);
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-red-900/20 flex items-center gap-2"
+                        >
+                          <TrashIcon className="w-4 h-4" /> Delete
+                        </button>
                       </div>
-                    ))}
-                    {/* Progress Bar for Micro-steps */}
-                    <div className="w-full bg-gray-100 dark:bg-gray-800 h-1 rounded-full mt-2 overflow-hidden">
-                      <div
-                        className="bg-blue-500 h-full transition-all duration-300"
-                        style={{
-                          width: `${(habit.microSteps.filter(s => s.completed).length / habit.microSteps.length) * 100}% `
-                        }}
-                      />
-                    </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             );
-          })
+            })}
+            {isToday && (
+              <button
+                type="button"
+                onClick={() => setIsAdding(true)}
+                className="w-full p-4 rounded-2xl border border-dashed border-gray-300 dark:border-[#2A3444] bg-gray-50 dark:bg-[#121821] text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-[#1A2433] transition-colors flex items-center justify-center gap-2 font-semibold"
+              >
+                <Plus size={18} />
+                <span>{isAdding ? 'Adding Habit...' : 'Add Habit'}</span>
+              </button>
+            )}
+          </>
         )}
       </div>
 
-      {/* Custom Context Menu */}
-      {
-        contextMenu && (
-          <div
-            ref={contextMenuRef}
-            className="fixed z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-100 dark:border-gray-700 py-1 min-w-[160px] animate-fade-in"
-            style={{ top: contextMenu.y, left: contextMenu.x }}
-          >
-            <button
-              onClick={() => { onUpdateStatus(contextMenu.id, viewDateString, 'completed'); setContextMenu(null); }}
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
-            >
-              <Check size={14} className="text-green-500" /> Complete
-            </button>
-            <button
-              onClick={() => { onUpdateStatus(contextMenu.id, viewDateString, 'partial'); setContextMenu(null); }}
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
-            >
-              <PieChart size={14} className="text-blue-500" /> Mark Partial
-            </button>
-            <button
-              onClick={() => { onUpdateStatus(contextMenu.id, viewDateString, 'skipped'); setContextMenu(null); }}
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
-            >
-              <SkipForward size={14} className="text-gray-500" /> Skip Day
-            </button>
-            <div className="h-px bg-gray-100 dark:bg-gray-700 my-1"></div>
-            <button
-              onClick={() => { onUpdateStatus(contextMenu.id, viewDateString, null); setContextMenu(null); }}
-              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
-            >
-              <X size={14} /> Clear Status
-            </button>
-          </div>
-        )
-      }
-
       {/* Stopwatch Modal */}
-      {
-        stopwatchHabitId && (() => {
-          const habit = habits.find(h => h.id === stopwatchHabitId);
-          if (!habit || !habit.targetDuration) return null;
+      {stopwatchHabitId && (() => {
+        const habit = habits.find(h => h.id === stopwatchHabitId);
+        if (!habit || !habit.targetDuration) return null;
 
-          return (
-            <Timer
-              key={habit.id}
-              habitId={habit.id}
-              habitTitle={habit.title}
-              targetDuration={habit.targetDuration}
-              onComplete={() => {
-                // Auto-complete the habit when timer finishes
-                onUpdateStatus(habit.id, today, 'completed');
-                setStopwatchHabitId(null);
-              }}
-              onClose={() => setStopwatchHabitId(null)}
-            />
-          );
-        })()
+        return (
+          <Timer
+            key={habit.id}
+            habitId={habit.id}
+            habitTitle={habit.title}
+            targetDuration={habit.targetDuration}
+            onComplete={() => {
+              onUpdateStatus(habit.id, getLocalDateString(new Date()), 'completed');
+              setStopwatchHabitId(null);
+            }}
+            onClose={() => setStopwatchHabitId(null)}
+          />
+        );
+      })()
       }
-
-    </div >
+    </div>
   );
 };

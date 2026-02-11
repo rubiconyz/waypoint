@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
-import { ImageSize, AspectRatio, AIStudioWindow, TranscriptSegment, Habit, SavedWord, RecentVideo } from "../types";
+import { ImageSize, AspectRatio, AIStudioWindow, TranscriptSegment, Habit, SavedWord, RecentVideo, HabitDNAArchetype, HabitDNAMetrics } from "../types";
+import { getLocalDateString } from "../utils/dateUtils";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_API_KEY;
 const GEMINI_PROXY_URL = import.meta.env.VITE_GEMINI_PROXY_URL as string | undefined;
@@ -959,6 +960,89 @@ Use occasional classic emojis 📜🦉✨.`,
   }
 };
 
+type CoachHabitDayStatus = 'completed' | 'partial' | 'skipped' | 'missed' | 'not_due';
+
+const normalizeToDayStart = (date: Date): Date => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const isHabitDueForDate = (habit: Habit, date: Date): boolean => {
+  const checkDate = normalizeToDayStart(date);
+
+  if (habit.createdAt) {
+    const createdDate = normalizeToDayStart(new Date(habit.createdAt));
+    if (checkDate < createdDate) return false;
+  }
+
+  if (habit.frequency.type === 'custom') {
+    return habit.frequency.days.includes(checkDate.getDay());
+  }
+
+  return true;
+};
+
+const getHabitStatusForDate = (habit: Habit, date: Date): CoachHabitDayStatus => {
+  if (!isHabitDueForDate(habit, date)) return 'not_due';
+
+  const key = getLocalDateString(date);
+  const status = habit.history[key];
+  if (status === 'completed' || status === 'partial' || status === 'skipped') return status;
+  return 'missed';
+};
+
+const countDayStatuses = (statuses: CoachHabitDayStatus[]) => ({
+  dueHabits: statuses.filter(s => s !== 'not_due').length,
+  completed: statuses.filter(s => s === 'completed').length,
+  skipped: statuses.filter(s => s === 'skipped').length,
+  partial: statuses.filter(s => s === 'partial').length,
+  missed: statuses.filter(s => s === 'missed').length,
+  notDue: statuses.filter(s => s === 'not_due').length
+});
+
+export interface DailyFocusStats {
+  date: string;
+  dueToday: number;
+  completedToday: number;
+  completionRateToday: number;
+  weeklyAverageRate: number;
+  weeklyBestRate: number;
+  weeklyWorstRate: number;
+  topMissedHabits: string[];
+  bestHabits: string[];
+}
+
+export const generateDailyFocusTip = async (stats: DailyFocusStats): Promise<string> => {
+  const ai = getGeminiClient();
+
+  const prompt = `
+You are a high-performance habit coach.
+Generate ONE short daily focus tip (max 22 words) from this factual stats object:
+${JSON.stringify(stats, null, 2)}
+
+Rules:
+- Mention at least one real number from the stats.
+- Include one concrete action for today.
+- No quotes, emojis, markdown, or bullet points.
+- Keep it direct and practical.
+- If completionRateToday is 100%, congratulate and focus on maintaining momentum or tomorrow's plan.
+- NEVER recommend a habit that is already completed today.
+- If topMissedHabits is empty, do NOT suggest any specific habit to work on.
+`;
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: { parts: [{ text: prompt }] }
+  });
+
+  const text = response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!text) {
+    throw new Error('Empty response from Gemini');
+  }
+  return text.replace(/\s+/g, ' ').trim();
+};
+
 // AI Coach Chat Function
 export const chatWithHabitCoach = async (
   userMessage: string,
@@ -971,27 +1055,51 @@ export const chatWithHabitCoach = async (
     const ai = getGeminiClient();
     const selectedPersona = COACH_PERSONAS[persona];
 
+    const today = normalizeToDayStart(new Date());
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const todayKey = getLocalDateString(today);
+    const yesterdayKey = getLocalDateString(yesterday);
+
     // Build habit context
     const habitContext = habits.map(h => {
       const completedCount = Object.values(h.history).filter(s => s === 'completed').length;
-      const last7Days = Object.entries(h.history)
-        .filter(([date]) => {
-          const d = new Date(date);
-          const weekAgo = new Date();
-          weekAgo.setDate(weekAgo.getDate() - 7);
-          return d >= weekAgo;
-        })
-        .map(([, status]) => status);
+      const todayStatus = getHabitStatusForDate(h, today);
+      const yesterdayStatus = getHabitStatusForDate(h, yesterday);
+
+      const last7Statuses = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        return getHabitStatusForDate(h, d);
+      });
+
+      const last7Due = last7Statuses.filter(s => s !== 'not_due').length;
+      const last7Completed = last7Statuses.filter(s => s === 'completed' || s === 'skipped').length;
+      const last7Missed = last7Statuses.filter(s => s === 'missed').length;
 
       return {
         title: h.title,
         category: h.category,
         streak: h.streak,
         totalCompletions: completedCount,
-        last7DaysCompleted: last7Days.filter(s => s === 'completed').length,
-        last7DaysMissed: last7Days.filter(s => s === null || s === undefined).length
+        today: {
+          due: todayStatus !== 'not_due',
+          status: todayStatus
+        },
+        yesterday: {
+          due: yesterdayStatus !== 'not_due',
+          status: yesterdayStatus
+        },
+        last7Days: {
+          due: last7Due,
+          completedOrSkipped: last7Completed,
+          missed: last7Missed
+        }
       };
     });
+
+    const todaySummary = countDayStatuses(habitContext.map(h => h.today.status));
+    const yesterdaySummary = countDayStatuses(habitContext.map(h => h.yesterday.status));
 
     // Build conversation history for context
     const historyText = chatHistory.slice(-6).map(m =>
@@ -1002,10 +1110,26 @@ export const chatWithHabitCoach = async (
     const memoriesText = memories.length > 0
       ? `\nTHINGS YOU REMEMBER ABOUT THIS USER:\n${memories.map(m => `- ${m}`).join('\n')}\n(Reference these naturally when relevant. Don't list them back unless specifically asked.)`
       : '';
+    const isDayStatusQuestion = /(today|yesterday|daily update|on my plate|how did i do)/i.test(userMessage);
+    const dayStatusGuard = isDayStatusQuestion
+      ? `
+DAY-STATUS FORMAT REQUIREMENT:
+- Start with one factual line before advice:
+  Yesterday: due <n>, completed/skipped <n>, missed <n>, not due <n>.
+- If yesterday due is 0, explicitly say no tasks were due yesterday.
+- Then continue in persona voice.`
+      : '';
 
     const prompt = `
 ${selectedPersona.prompt}
 ${memoriesText}
+${dayStatusGuard}
+
+FACTUAL DAY SNAPSHOT (SOURCE OF TRUTH):
+Today (${todayKey}):
+${JSON.stringify(todaySummary, null, 2)}
+Yesterday (${yesterdayKey}):
+${JSON.stringify(yesterdaySummary, null, 2)}
 
 USER'S HABITS DATA:
 ${JSON.stringify(habitContext, null, 2)}
@@ -1018,6 +1142,9 @@ USER'S NEW MESSAGE: ${userMessage}
 RULES:
 - Stay IN CHARACTER for your persona (${selectedPersona.name}) at all times.
 - Reference their ACTUAL habit data when relevant.
+- Treat "FACTUAL DAY SNAPSHOT" and each habit's today/yesterday status as strict truth.
+- Never claim a habit was completed yesterday unless yesterday.status is "completed" or "skipped".
+- If yesterday.dueHabits is 0, explicitly say no tasks were due yesterday.
 - **IMPORTANT**: Speak NATURALLY. Do NOT speak like a database.
   - BAD: "You did not complete 'Gym' and 'Reading'."
   - GOOD: "Why did you skip the gym? And I noticed you didn't pick up that book either."
@@ -1090,5 +1217,358 @@ If nothing to extract, return: []`;
   } catch (error) {
     console.error("Error extracting memories:", error);
     return [];
+  }
+};
+
+/**
+ * Habit DNA — Generate AI-powered behavioral fingerprint
+ */
+export const generateHabitDNA = async (
+  habits: Habit[]
+): Promise<{ archetype: HabitDNAArchetype; metrics: HabitDNAMetrics } | null> => {
+  try {
+    const ai = getGeminiClient();
+
+    const today = normalizeToDayStart(new Date());
+
+    // Compute raw metrics locally for accuracy
+    const allDatesSet = new Set<string>();
+    const categoryCompletions: Record<string, number> = {};
+    let totalCompletions = 0;
+    let totalStreakSum = 0;
+
+    habits.forEach(h => {
+      Object.entries(h.history).forEach(([date, status]) => {
+        if (status === 'completed') {
+          allDatesSet.add(date);
+          totalCompletions++;
+          categoryCompletions[h.category] = (categoryCompletions[h.category] || 0) + 1;
+        }
+      });
+      totalStreakSum += h.streak;
+    });
+
+    const activeDays = allDatesSet.size;
+    const averageStreakLength = habits.length > 0 ? Math.round(totalStreakSum / habits.length) : 0;
+    const dominantCategory = Object.entries(categoryCompletions).sort((a, b) => b[1] - a[1])[0]?.[0] || 'None';
+
+    // Consistency: % of last 30 days with at least one completion
+    let consistentDays = 0;
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = getLocalDateString(d);
+      if (allDatesSet.has(dateStr)) consistentDays++;
+    }
+    const consistencyRhythm = Math.round((consistentDays / 30) * 100);
+
+    // Category balance: use coefficient of variation (lower CV = higher harmony)
+    const catValues = Object.values(categoryCompletions);
+    let categoryHarmony = 100;
+    if (catValues.length > 1) {
+      const mean = catValues.reduce((a, b) => a + b, 0) / catValues.length;
+      const variance = catValues.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / catValues.length;
+      const cv = mean > 0 ? Math.sqrt(variance) / mean : 1;
+      categoryHarmony = Math.max(0, Math.round((1 - cv) * 100));
+    }
+
+    // Streak resilience: count recovery patterns (missed -> completed within 2 days)
+    let recoveries = 0;
+    let missedStreaks = 0;
+    habits.forEach(h => {
+      const sortedDates = Object.keys(h.history).sort();
+      for (let i = 1; i < sortedDates.length; i++) {
+        if (h.history[sortedDates[i - 1]] !== 'completed' && h.history[sortedDates[i]] === 'completed') {
+          recoveries++;
+        }
+        if (h.history[sortedDates[i - 1]] === 'completed' && h.history[sortedDates[i]] !== 'completed') {
+          missedStreaks++;
+        }
+      }
+    });
+    const streakResilience = missedStreaks > 0
+      ? Math.min(100, Math.round((recoveries / missedStreaks) * 100))
+      : Math.min(100, Math.round((activeDays / 14) * 100));
+
+    // Growth velocity: compare last 2 weeks
+    let recentWeekCompletions = 0;
+    let previousWeekCompletions = 0;
+    habits.forEach(h => {
+      Object.entries(h.history).forEach(([date, status]) => {
+        if (status !== 'completed') return;
+        const d = new Date(date + 'T12:00:00');
+        const daysDiff = Math.floor((today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysDiff >= 0 && daysDiff < 7) recentWeekCompletions++;
+        else if (daysDiff >= 7 && daysDiff < 14) previousWeekCompletions++;
+      });
+    });
+    const growthVelocity = previousWeekCompletions > 0
+      ? Math.min(100, Math.round(((recentWeekCompletions - previousWeekCompletions) / previousWeekCompletions + 1) * 50))
+      : (recentWeekCompletions > 0
+        ? Math.min(100, Math.round((recentWeekCompletions / Math.max(habits.length * 7, 1)) * 100))
+        : 0);
+
+    const metrics: HabitDNAMetrics = {
+      consistencyRhythm,
+      categoryHarmony,
+      streakResilience,
+      growthVelocity,
+      totalCompletions,
+      activeDays,
+      dominantCategory,
+      averageStreakLength
+    };
+
+    // ─── Deterministic Archetype System ──────────────────────────────────────
+    // Class from dominant category, Tier from overall score. Same data = same character.
+
+    const classMap: Record<string, { className: string; emoji: string }> = {
+      'Fitness': { className: 'Warrior', emoji: '⚔️' },
+      'Health': { className: 'Druid', emoji: '🌿' },
+      'Reading': { className: 'Scholar', emoji: '📖' },
+      'Meditation': { className: 'Monk', emoji: '🧘' },
+      'Productivity': { className: 'Engineer', emoji: '⚙️' },
+      'Creative': { className: 'Bard', emoji: '🎨' },
+      'Social': { className: 'Paladin', emoji: '🛡️' },
+      'Learning': { className: 'Sage', emoji: '🔮' },
+      'Finance': { className: 'Merchant', emoji: '💰' },
+      'Mindfulness': { className: 'Spirit Walker', emoji: '✨' },
+    };
+
+    const characterClass = classMap[dominantCategory] || { className: 'Adventurer', emoji: '🗡️' };
+
+    // Overall power score = weighted average of all 4 metrics
+    const overallScore = Math.round(
+      consistencyRhythm * 0.35 +
+      categoryHarmony * 0.2 +
+      streakResilience * 0.25 +
+      growthVelocity * 0.2
+    );
+
+    // Tier thresholds — each tier has a fixed name, color palette, and traits
+    const tiers = [
+      {
+        maxScore: 15,
+        tier: 'Novice',
+        title: 'Just Starting Out',
+        traits: ['Beginner', 'Untested', 'Potential'],
+        colors: ['#6B7280', '#9CA3AF', '#4B5563', '#374151'], // grays
+      },
+      {
+        maxScore: 30,
+        tier: 'Apprentice',
+        title: 'Learning the Ropes',
+        traits: ['Growing', 'Curious', 'Unsteady'],
+        colors: ['#92400E', '#B45309', '#78350F', '#A16207'], // bronze/brown
+      },
+      {
+        maxScore: 50,
+        tier: 'Adept',
+        title: 'Finding Your Stride',
+        traits: ['Capable', 'Building', 'Focused'],
+        colors: ['#0891B2', '#0EA5E9', '#0369A1', '#06B6D4'], // blue/cyan
+      },
+      {
+        maxScore: 70,
+        tier: 'Champion',
+        title: 'Proven & Strong',
+        traits: ['Disciplined', 'Resilient', 'Driven'],
+        colors: ['#7C3AED', '#8B5CF6', '#6D28D9', '#A78BFA'], // purple
+      },
+      {
+        maxScore: 85,
+        tier: 'Master',
+        title: 'Elite Performer',
+        traits: ['Relentless', 'Balanced', 'Unstoppable'],
+        colors: ['#F59E0B', '#FBBF24', '#D97706', '#FCD34D'], // gold
+      },
+      {
+        maxScore: 100,
+        tier: 'Grandmaster',
+        title: 'Legendary Status',
+        traits: ['Legendary', 'Transcendent', 'Iconic'],
+        colors: ['#EF4444', '#F97316', '#EC4899', '#8B5CF6'], // red/orange/pink — vibrant
+      },
+    ];
+
+    const currentTier = tiers.find(t => overallScore <= t.maxScore) || tiers[tiers.length - 1];
+
+    const archetypeName = `${currentTier.tier} ${characterClass.className}`;
+
+    // Ask Gemini only for an honest, data-reflective narrative (no creative naming)
+    let narrative = '';
+    try {
+      const prompt = `You are a blunt, honest habit coach. Based on this data, write exactly 2 sentences about this person's habits. Be HONEST — if they're slacking, say so directly. If they're doing well, acknowledge it. No sugar-coating, no motivational fluff.
+
+METRICS (each out of 100):
+- Consistency: ${consistencyRhythm}/100 (% of last 30 days with completions)
+- Category Balance: ${categoryHarmony}/100
+- Streak Resilience: ${streakResilience}/100 (ability to bounce back after missing)
+- Growth Velocity: ${growthVelocity}/100 (recent progress trend)
+- Total Completions: ${totalCompletions}
+- Active Days: ${activeDays}
+- Average Streak: ${averageStreakLength} days
+- They have ${habits.length} habits tracked
+
+Their character level is: "${archetypeName}" (overall score: ${overallScore}/100)
+
+Rules:
+- Write in second person ("You...")
+- Be specific about numbers
+- If metrics are LOW, be honest about it (e.g. "You've barely shown up" / "Your consistency is almost nonexistent")
+- If metrics are HIGH, genuinely praise the effort
+- Maximum 2 sentences, no filler
+- Return ONLY the narrative text, nothing else`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: { parts: [{ text: prompt }] }
+      });
+
+      if (response.candidates?.[0]?.content?.parts?.[0]?.text) {
+        narrative = response.candidates[0].content.parts[0].text.trim().replace(/^["']|["']$/g, '');
+      }
+    } catch (e) {
+      // Fallback narrative if Gemini fails
+      narrative = overallScore < 30
+        ? `With only ${totalCompletions} completions across ${activeDays} active days, you're just getting started. Consistency is your biggest challenge right now.`
+        : overallScore < 60
+          ? `You've built some momentum with ${totalCompletions} completions, but your ${consistencyRhythm}% consistency shows there's room to grow. Keep pushing.`
+          : `Strong performance with ${totalCompletions} completions and ${consistencyRhythm}% consistency. You've earned your ${currentTier.tier} rank.`;
+    }
+
+    const archetype: HabitDNAArchetype = {
+      name: archetypeName,
+      emoji: characterClass.emoji,
+      title: currentTier.title,
+      narrative,
+      traits: currentTier.traits,
+      colorPalette: currentTier.colors,
+    };
+
+    return { archetype, metrics };
+  } catch (error) {
+    console.error("Error generating Habit DNA:", error);
+    return null;
+  }
+};
+
+/**
+ * Generate RPG character image from habit data using Gemini's native image generation
+ */
+export const generateCharacterImage = async (
+  habits: Habit[],
+  metrics: HabitDNAMetrics,
+  archetype: HabitDNAArchetype
+): Promise<string | null> => {
+  try {
+    const ai = getGeminiClient();
+
+    // Map categories to RPG visual elements
+    const categoryVisuals: Record<string, string> = {
+      'Fitness': 'muscular warrior with battle gauntlets and armored boots',
+      'Health': 'nature druid with glowing healing herbs and a verdant cloak',
+      'Reading': 'arcane scholar with floating spell books and enchanted spectacles',
+      'Meditation': 'zen monk with ethereal aura rings and prayer beads',
+      'Productivity': 'clockwork engineer with mechanical gear accessories and brass goggles',
+      'Creative': 'spellweaver bard with a luminous lyre and paint-splattered robes',
+      'Social': 'charismatic paladin with a golden shield and banner cape',
+      'Learning': 'sage wizard with ancient scrolls and a crystal staff',
+      'Finance': 'merchant lord with coin-adorned armor and treasure map',
+      'Mindfulness': 'spirit walker with translucent robes and floating crystals',
+    };
+
+    // Determine outfit elements from habit categories
+    const categories = [...new Set(habits.map(h => h.category))];
+    const outfitElements = categories
+      .map(cat => categoryVisuals[cat] || `adventurer with ${cat.toLowerCase()}-themed gear`)
+      .join(', blended with ');
+
+    // Map consistency to posture/confidence
+    const consistencyDesc = metrics.consistencyRhythm > 75
+      ? 'standing tall with unwavering confidence, radiating power'
+      : metrics.consistencyRhythm > 40
+        ? 'in a ready battle stance, alert and determined'
+        : 'crouching in the shadows, gathering strength';
+
+    // Map streak resilience to armor
+    const armorDesc = metrics.streakResilience > 75
+      ? 'wearing legendary phoenix-forged armor that glows with inner fire, unbreakable'
+      : metrics.streakResilience > 40
+        ? 'clad in sturdy enchanted chainmail with battle scars showing experience'
+        : 'wearing light leather armor, agile and adaptable';
+
+    // Map growth velocity to energy effects
+    const energyDesc = metrics.growthVelocity > 75
+      ? 'with blazing energy wings erupting from their back, surrounded by ascending power particles'
+      : metrics.growthVelocity > 40
+        ? 'with a glowing aura halo and sparks of emerging power'
+        : 'with subtle magical embers floating gently around them';
+
+    // Map category harmony to symmetry
+    const harmonyDesc = metrics.categoryHarmony > 75
+      ? 'perfectly balanced elemental powers swirling in harmony around them'
+      : metrics.categoryHarmony > 40
+        ? 'a mix of elemental powers, some stronger than others'
+        : 'one dominant element overpowering the others with raw intensity';
+
+    // Map total completions to rank/tier
+    const tierDesc = metrics.totalCompletions > 100
+      ? 'LEGENDARY rank, diamond-tier, wreathed in celestial light'
+      : metrics.totalCompletions > 50
+        ? 'EPIC rank, gold-tier, with prestigious insignia'
+        : metrics.totalCompletions > 20
+          ? 'RARE rank, silver-tier, showing clear potential'
+          : 'COMMON rank, bronze-tier, at the start of their journey';
+
+    // Map average streak to companion
+    const companionDesc = metrics.averageStreakLength > 14
+      ? 'accompanied by a majestic phoenix familiar perched on their shoulder'
+      : metrics.averageStreakLength > 7
+        ? 'with a loyal wolf spirit companion at their side'
+        : metrics.averageStreakLength > 3
+          ? 'with a small glowing fairy companion orbiting them'
+          : 'with a tiny spark of light following them';
+
+    const prompt = `Create a single RPG character in a flat 2D illustrated style. Clean dark background. The character should be:
+
+CORE IDENTITY: "${archetype.name}" — ${archetype.title}
+PERSONALITY: ${archetype.traits.join(', ')}
+
+APPEARANCE:
+- ${outfitElements}
+- ${consistencyDesc}
+- ${armorDesc}
+- ${energyDesc}
+- ${harmonyDesc}
+- ${tierDesc}
+- ${companionDesc}
+
+COLOR PALETTE: Use these exact colors as primary accents: ${archetype.colorPalette.join(', ')}
+
+STYLE: Clean flat 2D vector-style illustration. Think modern mobile game character art — bold outlines, flat colors with minimal shading, simple geometric shapes. Full body character centered in frame. Solid dark background. NOT 3D, NOT photorealistic, NOT detailed painting. Simple, colorful, and charming like a character select screen in a mobile RPG.
+
+IMPORTANT: Single character only. No text, no UI elements, no watermarks. Square aspect ratio.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: prompt,
+      config: {
+        responseModalities: ['Text', 'Image'],
+      }
+    });
+
+    if (response.candidates && response.candidates[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData?.data) {
+          return part.inlineData.data; // base64 string
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error generating character image:", error);
+    return null;
   }
 };

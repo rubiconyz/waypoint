@@ -24,7 +24,7 @@ export const generateInviteCode = (): string => {
 
 // Get shareable invite link
 export const getInviteLink = (inviteCode: string): string => {
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://waypoint.app';
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://waypoint.ltd';
     return `${baseUrl}/challenge/${inviteCode}`;
 };
 

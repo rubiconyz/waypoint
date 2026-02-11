@@ -91,12 +91,12 @@ export const ChallengesTab: React.FC<ChallengesTabProps> = ({
         return (
             <div
                 onClick={() => handleSelectChallenge(challenge)}
-                className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                className="bg-white dark:bg-[#0F141D] p-5 rounded-2xl border border-gray-200 dark:border-[#1F2733] shadow-sm hover:shadow-md transition-all cursor-pointer group"
             >
                 <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
                         <div className="flex items-center justify-between mr-2">
-                            <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-blue-500 transition-colors">
+                            <h3 className="font-bold text-gray-900 dark:text-slate-100 group-hover:text-blue-500 transition-colors">
                                 {challenge.title}
                             </h3>
 
@@ -125,7 +125,7 @@ export const ChallengesTab: React.FC<ChallengesTabProps> = ({
                                 </button>
                             </div>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                             {challenge.habitTitle}
                         </p>
                     </div>
@@ -135,27 +135,27 @@ export const ChallengesTab: React.FC<ChallengesTabProps> = ({
                             {daysRemaining}d left
                         </div>
                     ) : (
-                        <div className="flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-lg shrink-0">
+                        <div className="flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 dark:bg-[#121821] px-2 py-1 rounded-lg shrink-0">
                             <Trophy size={12} />
                             Completed
                         </div>
                     )}
                 </div>
 
-                <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                <div className="flex items-center justify-between text-sm text-gray-500 dark:text-slate-400">
                     <div className="flex items-center gap-2">
                         <div className="flex -space-x-2">
                             {challenge.participants.slice(0, 3).map((p, i) => (
                                 <div
                                     key={i}
-                                    className="w-6 h-6 rounded-full border-2 border-white dark:border-gray-900 flex items-center justify-center text-[10px] text-white font-bold"
+                                    className="w-6 h-6 rounded-full border-2 border-white dark:border-[#0F141D] flex items-center justify-center text-[10px] text-white font-bold"
                                     style={{ backgroundColor: p.avatarColor }}
                                 >
                                     {p.displayName.charAt(0).toUpperCase()}
                                 </div>
                             ))}
                             {challenge.participants.length > 3 && (
-                                <div className="w-6 h-6 rounded-full border-2 border-white dark:border-gray-900 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[10px] items-center text-gray-600 dark:text-gray-300">
+                                <div className="w-6 h-6 rounded-full border-2 border-white dark:border-[#0F141D] bg-gray-200 dark:bg-[#2A3444] flex items-center justify-center text-[10px] items-center text-gray-600 dark:text-slate-300">
                                     +{challenge.participants.length - 3}
                                 </div>
                             )}
@@ -200,15 +200,15 @@ export const ChallengesTab: React.FC<ChallengesTabProps> = ({
                     {/* Header */}
                     <div className="flex items-center justify-between">
                         <div>
-                            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Challenges</h2>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                            <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100">Challenges</h2>
+                            <p className="text-sm text-gray-500 dark:text-slate-400">
                                 Turn your daily habits into a shared adventure
                             </p>
                         </div>
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setIsJoinModalOpen(true)}
-                                className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-medium transition-all"
+                                className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-[#121821] hover:bg-gray-200 dark:hover:bg-[#1A2433] text-gray-700 dark:text-slate-200 rounded-xl font-medium transition-all"
                             >
                                 <Users size={18} />
                                 Join
@@ -226,7 +226,7 @@ export const ChallengesTab: React.FC<ChallengesTabProps> = ({
                     {/* activeChallenges map */}
                     {activeChallenges.length > 0 && (
                         <section>
-                            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-1">
+                            <h3 className="text-sm font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-3 px-1">
                                 Active Climbs
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -243,16 +243,16 @@ export const ChallengesTab: React.FC<ChallengesTabProps> = ({
                             <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <Users size={36} className="text-blue-500" />
                             </div>
-                            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                            <h3 className="text-xl font-semibold text-gray-900 dark:text-slate-100 mb-2">
                                 No challenges yet
                             </h3>
-                            <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">
+                            <p className="text-gray-500 dark:text-slate-400 mb-6 max-w-sm mx-auto">
                                 Create a challenge or join a friend using their invite code!
                             </p>
                             <div className="flex justify-center gap-3">
                                 <button
                                     onClick={() => setIsJoinModalOpen(true)}
-                                    className="px-6 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                                    className="px-6 py-3 bg-white dark:bg-[#121821] border border-gray-200 dark:border-[#2A3444] text-gray-700 dark:text-slate-200 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-[#1A2433] transition-all"
                                 >
                                     Join w/ Code
                                 </button>
@@ -269,7 +269,7 @@ export const ChallengesTab: React.FC<ChallengesTabProps> = ({
                     {/* Past Challenges */}
                     {pastChallenges.length > 0 && (
                         <section>
-                            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-1">
+                            <h3 className="text-sm font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-3 px-1">
                                 Past Expeditions
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

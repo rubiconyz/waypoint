@@ -241,3 +241,54 @@ export interface TrainingProgramState {
 export interface DailyUsageLog {
   [date: string]: number; // date (YYYY-MM-DD) -> seconds
 }
+
+// Radial Schedule Types
+export type TimeBlockCategory = 'Fitness' | 'Learning' | 'Mindfulness' | 'Health' | 'Reading' | 'Sleep' | 'Work' | 'Other';
+
+export interface TimeBlock {
+  id: string;
+  title: string;
+  category: TimeBlockCategory;
+  startHour: number;   // 0-23
+  startMinute: number; // 0-59
+  endHour: number;     // 0-23
+  endMinute: number;   // 0-59
+  color?: string;      // Optional custom color override
+  icon?: string;       // Optional emoji/icon
+  date: string;        // YYYY-MM-DD
+}
+
+// Habit DNA Types — AI-powered behavioral fingerprint
+export interface HabitDNAArchetype {
+  name: string;          // e.g. "The Morning Phoenix"
+  emoji: string;         // e.g. "🔥"
+  title: string;         // Short tagline e.g. "Relentless & Rising"
+  narrative: string;     // 2-3 sentence AI-generated personality description
+  traits: string[];      // 3-4 key behavioral traits
+  colorPalette: string[]; // 3-4 hex colors that define this archetype's visual
+}
+
+export interface HabitDNAMetrics {
+  consistencyRhythm: number;    // 0-100: How regular/predictable the user's habit completion is
+  categoryHarmony: number;      // 0-100: Balance across habit categories
+  streakResilience: number;     // 0-100: How well they bounce back from missed days
+  growthVelocity: number;       // 0-100: Improvement trajectory over recent weeks
+  totalCompletions: number;     // Lifetime completions
+  activeDays: number;           // Total unique days with at least one completion
+  dominantCategory: string;     // Most completed category
+  averageStreakLength: number;   // Average streak across all habits
+}
+
+export interface HabitDNASnapshot {
+  id: string;
+  generatedAt: string;   // ISO timestamp
+  weekLabel: string;     // e.g. "Week of Feb 3, 2026"
+  archetype: HabitDNAArchetype;
+  metrics: HabitDNAMetrics;
+  characterImageBase64?: string;
+}
+
+export interface HabitDNAProfile {
+  current: HabitDNASnapshot | null;
+  history: HabitDNASnapshot[];  // Past weekly snapshots (oldest first)
+}
