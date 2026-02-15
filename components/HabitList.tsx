@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Timer } from './Timer';
 
 import { Habit, HabitFrequency, AspectRatio, ImageSize } from '../types';
-import { Plus, Flame, Calendar, Check, X, MoreVertical, Trash2, Pencil, Timer as TimerIcon, Play, Pause, Square, SkipForward, BarChart2, PieChart, Star, Languages, Droplets, Moon, Flower2, Footprints, Coffee, BookOpen, Dumbbell, Award, GripVertical, Brain, Heart, Book, Briefcase, Pin, ChevronLeft, ChevronRight, Clock, MessageCircle } from 'lucide-react';
+import { Plus, Flame, Calendar, Check, X, MoreVertical, Trash2, Pencil, Timer as TimerIcon, Play, Pause, Square, SkipForward, BarChart2, PieChart, Star, Languages, Droplets, Moon, Flower2, Footprints, Coffee, BookOpen, Dumbbell, Award, GripVertical, Brain, Heart, Book, Briefcase, Pin, ChevronLeft, ChevronRight, ChevronDown, Clock, MessageCircle } from 'lucide-react';
 import { EllipsisVerticalIcon, PencilSquareIcon, TrashIcon, ClockIcon, FireIcon, StarIcon } from '@heroicons/react/24/outline';
 import { HABIT_CATEGORIES, DAY_ABBREVIATIONS } from '../constants';
 import { getLocalDateString, parseLocalDate, getWeekKey } from '../utils/dateUtils';
@@ -69,6 +69,7 @@ export const HabitList: React.FC<HabitListProps> = ({
 
   // View State
   const [contextMenu, setContextMenu] = useState<{ id: string, x: number, y: number } | null>(null);
+  const [expandedMicroSteps, setExpandedMicroSteps] = useState<string | null>(null);
 
   // Drag and drop state
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -658,6 +659,7 @@ export const HabitList: React.FC<HabitListProps> = ({
                 );
               }
 
+
               return (
                 <div
                   key={habit.id}
@@ -668,7 +670,7 @@ export const HabitList: React.FC<HabitListProps> = ({
                   }}
                   onDragEnd={handleDragEnd}
                   onDragOver={(e) => handleDragOver(e, index)}
-                  className={`flex items-center justify-between p-4 rounded-2xl border transition-all group relative cursor-grab active:cursor-grabbing ${isTransparent
+                  className={`p-4 rounded-2xl border transition-all group relative cursor-grab active:cursor-grabbing ${isTransparent
                     ? 'bg-white/60 dark:bg-[#0F141D]/85 backdrop-blur-xl border-white/20 dark:border-[#1F2733]'
                     : 'bg-white dark:bg-[#0F141D] border-gray-100 dark:border-[#1F2733]'
                     } ${isDragging
@@ -676,147 +678,145 @@ export const HabitList: React.FC<HabitListProps> = ({
                       : 'hover:border-gray-200 dark:hover:border-[#2A3444]'
                     }`}
                 >
-                  <div className="flex items-center gap-4 flex-1 min-w-0 mr-2">
-                    {/* Drag Handle */}
-                    <div
-                      className="text-gray-300 dark:text-gray-600 transition-colors flex-shrink-0"
-                      title="Drag to reorder"
-                    >
-                      <GripVertical size={18} />
-                    </div>
-
-                    {/* Circle Checkbox */}
-                    <button
-                      onClick={() => onUpdateStatus(habit.id, viewDateString, status === 'completed' ? null : 'completed')}
-                      className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${status === 'completed'
-                        ? 'bg-green-500 border-green-500 text-white'
-                        : 'border-gray-300 dark:border-[#2A3444] text-transparent hover:border-gray-400 dark:hover:border-slate-500'
-                        }`}
-                    >
-                      {status === 'completed' && <Check size={16} strokeWidth={3} />}
-                    </button>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-3">
-                        {/* Category Icon */}
-                        <div className="p-2.5 bg-gray-100 dark:bg-[#121821] rounded-2xl text-gray-400 dark:text-slate-400">
-                          {CATEGORY_ICONS[habit.category] || <StarIcon className="w-5 h-5" />}
-                        </div>
-                        <div>
-                          <h3 className={`font-semibold text-lg transition-colors truncate ${status === 'completed'
-                            ? 'text-gray-500 line-through decoration-gray-500' // Strikethrough for completed
-                            : 'text-gray-900 dark:text-slate-100'
-                            }`}>
-                            {habit.title}
-                          </h3>
-                          <span className="text-[10px] font-bold tracking-wider uppercase text-gray-500 dark:text-slate-500 bg-gray-100 dark:bg-[#121821] px-1.5 py-0.5 rounded">
-                            {habit.category}
-                          </span>
+                  {/* Top row */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 flex-1 min-w-0 mr-2">
+                      <div className="text-gray-300 dark:text-gray-600 transition-colors flex-shrink-0" title="Drag to reorder">
+                        <GripVertical size={18} />
+                      </div>
+                      <button
+                        onClick={() => onUpdateStatus(habit.id, viewDateString, status === 'completed' ? null : 'completed')}
+                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${status === 'completed'
+                          ? 'bg-green-500 border-green-500 text-white'
+                          : 'border-gray-300 dark:border-[#2A3444] text-transparent hover:border-gray-400 dark:hover:border-slate-500'
+                          }`}
+                      >
+                        {status === 'completed' && <Check size={16} strokeWidth={3} />}
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2.5 bg-gray-100 dark:bg-[#121821] rounded-2xl text-gray-400 dark:text-slate-400">
+                            {CATEGORY_ICONS[habit.category] || <StarIcon className="w-5 h-5" />}
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className={`font-semibold text-lg transition-colors truncate ${status === 'completed'
+                              ? 'text-gray-500 line-through decoration-gray-500'
+                              : 'text-gray-900 dark:text-slate-100'
+                              }`}>
+                              {habit.title}
+                            </h3>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold tracking-wider uppercase text-gray-500 dark:text-slate-500 bg-gray-100 dark:bg-[#121821] px-1.5 py-0.5 rounded">
+                                {habit.category}
+                              </span>
+                              {habit.microSteps && habit.microSteps.length > 0 && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedMicroSteps(prev => prev === habit.id ? null : habit.id);
+                                  }}
+                                  className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded-full hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
+                                >
+                                  <Check size={8} strokeWidth={3} />
+                                  {habit.microSteps.filter(s => s.completed).length}/{habit.microSteps.length}
+                                  <ChevronDown size={10} className={`transition-transform ${expandedMicroSteps === habit.id ? 'rotate-180' : ''}`} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Micro-steps if any */}
-                      {habit.microSteps && habit.microSteps.length > 0 && (
-                        <div className="mt-3 ml-[3.25rem] space-y-1.5">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
-                              Micro-steps
-                            </span>
-                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full">
-                              {habit.microSteps.filter(s => s.completed).length}/{habit.microSteps.length}
-                            </span>
-                          </div>
-                          {habit.microSteps.map((step, stepIdx) => (
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-1.5 text-orange-500 dark:text-orange-500/90 font-bold bg-orange-500/10 px-2 py-1 rounded-lg">
+                        <FireIcon className="w-4 h-4" />
+                        <span className="text-sm">{habit.streak}</span>
+                      </div>
+                      {!!habit.targetDuration && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setStopwatchHabitId(habit.id);
+                          }}
+                          className="text-gray-400 hover:text-white p-1.5 bg-gray-100 dark:bg-[#121821] rounded-lg transition-colors"
+                        >
+                          <ClockIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setOpenMenuHabitId(openMenuHabitId === habit.id ? null : habit.id);
+                          }}
+                          className="relative z-10 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1"
+                        >
+                          <EllipsisVerticalIcon className="w-5 h-5" />
+                        </button>
+                        {openMenuHabitId === habit.id && (
+                          <div className="absolute right-0 top-full mt-1 w-32 bg-[#1A1A1A] rounded-lg shadow-xl border border-white/10 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                             <button
-                              key={step.id}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const updatedSteps = habit.microSteps!.map((s, i) =>
-                                  i === stepIdx ? { ...s, completed: !s.completed } : s
-                                );
-                                onEditHabit(habit.id, { microSteps: updatedSteps });
+                                startEditing(habit);
+                                setOpenMenuHabitId(null);
                               }}
-                              className="flex items-center gap-2.5 w-full text-left group/step py-1 px-2 -mx-2 rounded-lg hover:bg-gray-50 dark:hover:bg-[#121821] transition-colors"
+                              className="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/5 flex items-center gap-2"
                             >
-                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${step.completed
-                                  ? 'bg-emerald-500 border-emerald-500 text-white'
-                                  : 'border-gray-300 dark:border-[#2A3444] group-hover/step:border-emerald-400'
-                                }`}>
-                                {step.completed && <Check size={10} strokeWidth={3} />}
-                              </div>
-                              <span className={`text-sm transition-colors ${step.completed
-                                  ? 'text-gray-400 dark:text-slate-500 line-through'
-                                  : 'text-gray-700 dark:text-slate-300'
-                                }`}>
-                                {step.text}
-                              </span>
+                              <PencilSquareIcon className="w-4 h-4" /> Edit
                             </button>
-                          ))}
-                        </div>
-                      )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteHabit(habit.id);
+                                setOpenMenuHabitId(null);
+                              }}
+                              className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-red-900/20 flex items-center gap-2"
+                            >
+                              <TrashIcon className="w-4 h-4" /> Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
-                    {/* Streak */}
-                    <div className="flex items-center gap-1.5 text-orange-500 dark:text-orange-500/90 font-bold bg-orange-500/10 px-2 py-1 rounded-lg">
-                      <FireIcon className="w-4 h-4" />
-                      <span className="text-sm">{habit.streak}</span>
+                  {/* Collapsible Micro-steps */}
+                  {expandedMicroSteps === habit.id && habit.microSteps && habit.microSteps.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-100 dark:border-[#1F2733] ml-[4.5rem] space-y-1">
+                      {habit.microSteps.map((step, stepIdx) => (
+                        <button
+                          key={step.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const updatedSteps = habit.microSteps!.map((s, i) =>
+                              i === stepIdx ? { ...s, completed: !s.completed } : s
+                            );
+                            onEditHabit(habit.id, { microSteps: updatedSteps });
+                          }}
+                          className="flex items-center gap-2.5 w-full text-left group/step py-1.5 px-2 -mx-2 rounded-lg hover:bg-gray-50 dark:hover:bg-[#121821] transition-colors"
+                        >
+                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                            step.completed
+                              ? 'bg-emerald-500 border-emerald-500 text-white'
+                              : 'border-gray-300 dark:border-[#2A3444] group-hover/step:border-emerald-400'
+                          }`}>
+                            {step.completed && <Check size={10} strokeWidth={3} />}
+                          </div>
+                          <span className={`text-sm transition-colors ${
+                            step.completed
+                              ? 'text-gray-400 dark:text-slate-500 line-through'
+                              : 'text-gray-700 dark:text-slate-300'
+                          }`}>
+                            {step.text}
+                          </span>
+                        </button>
+                      ))}
                     </div>
-
-                    {/* Timer (if applicable) */}
-                    {!!habit.targetDuration && (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setStopwatchHabitId(habit.id);
-                        }}
-                        className="text-gray-400 hover:text-white p-1.5 bg-gray-100 dark:bg-[#121821] rounded-lg transition-colors"
-                      >
-                        <ClockIcon className="w-4 h-4" />
-                      </button>
-                    )}
-
-                    {/* Actions Menu */}
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setOpenMenuHabitId(openMenuHabitId === habit.id ? null : habit.id);
-                        }}
-                        className="relative z-10 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1"
-                      >
-                        <EllipsisVerticalIcon className="w-5 h-5" />
-                      </button>
-
-                      {openMenuHabitId === habit.id && (
-                        <div className="absolute right-0 top-full mt-1 w-32 bg-[#1A1A1A] rounded-lg shadow-xl border border-white/10 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startEditing(habit);
-                              setOpenMenuHabitId(null);
-                            }}
-                            className="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/5 flex items-center gap-2"
-                          >
-                            <PencilSquareIcon className="w-4 h-4" /> Edit
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeleteHabit(habit.id);
-                              setOpenMenuHabitId(null);
-                            }}
-                            className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-red-900/20 flex items-center gap-2"
-                          >
-                            <TrashIcon className="w-4 h-4" /> Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  )}
                 </div>
               );
             })}
@@ -852,8 +852,7 @@ export const HabitList: React.FC<HabitListProps> = ({
             onClose={() => setStopwatchHabitId(null)}
           />
         );
-      })()
-      }
+      })()}
     </div>
   );
 };
