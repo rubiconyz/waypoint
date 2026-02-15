@@ -1013,22 +1013,38 @@ export interface DailyFocusStats {
   bestHabits: string[];
 }
 
-export const generateDailyFocusTip = async (stats: DailyFocusStats): Promise<string> => {
+export const generateAIQuote = async (
+  stats: DailyFocusStats,
+  previousQuotes: string[] = []
+): Promise<{ quote: string; author: string }> => {
   const ai = getGeminiClient();
 
+  const recentQuotes = previousQuotes.slice(-20);
+
   const prompt = `
-You are a high-performance habit coach.
-Generate ONE short daily focus tip (max 22 words) from this factual stats object:
+You are a curator of powerful, real quotes from historical figures, athletes, philosophers, authors, and leaders.
+
+Pick ONE real quote that matches the user's current performance context below.
+
+USER PERFORMANCE:
 ${JSON.stringify(stats, null, 2)}
 
-Rules:
-- Mention at least one real number from the stats.
-- Include one concrete action for today.
-- No quotes, emojis, markdown, or bullet points.
-- Keep it direct and practical.
-- If completionRateToday is 100%, congratulate and focus on maintaining momentum or tomorrow's plan.
-- NEVER recommend a habit that is already completed today.
-- If topMissedHabits is empty, do NOT suggest any specific habit to work on.
+GUIDELINES FOR MATCHING:
+- If completionRateToday >= 80%: Pick a quote about maintaining excellence, consistency, or finishing strong.
+- If completionRateToday is 40-79%: Pick a quote about perseverance, pushing through, or discipline.
+- If completionRateToday < 40%: Pick a quote about starting, resilience, or overcoming setbacks.
+- If weeklyAverageRate > 70%: Lean toward quotes about momentum and mastery.
+- If weeklyAverageRate < 40%: Lean toward quotes about new beginnings and grit.
+
+PREVIOUSLY SHOWN QUOTES (DO NOT REPEAT ANY OF THESE):
+${recentQuotes.length > 0 ? recentQuotes.map(q => `- "${q}"`).join('\n') : '(none yet)'}
+
+RULES:
+- Must be a REAL quote from a REAL person (no made-up quotes).
+- Return ONLY valid JSON: { "quote": "...", "author": "..." }
+- No markdown, code blocks, or extra text.
+- The quote should be under 25 words.
+- Do NOT repeat any quote from the previously shown list.
 `;
 
   const response = await ai.models.generateContent({
@@ -1040,7 +1056,8 @@ Rules:
   if (!text) {
     throw new Error('Empty response from Gemini');
   }
-  return text.replace(/\s+/g, ' ').trim();
+  const cleanText = text.replace(/```json\n|```/g, '').trim();
+  return JSON.parse(cleanText);
 };
 
 // AI Coach Chat Function

@@ -457,338 +457,368 @@ export const HabitList: React.FC<HabitListProps> = ({
         ) : (
           <>
             {habits.map((habit, index) => {
-            // Logic: Hide habit if looking at a date before it was created
-            if (habit.createdAt) {
-              const createdDate = new Date(habit.createdAt);
-              const createdDateStr = getLocalDateString(createdDate);
-              // Simple string comparison works for ISO YYYY-MM-DD
-              if (viewDateString < createdDateStr) {
-                return null;
-              }
-            }
-
-            const status = habit.history[viewDateString];
-            const isDragging = draggedIndex === index;
-            const isEditing = editingId === habit.id;
-
-            // Calculate weekly progress if applicable
-            let weeklyProgress = null;
-            if (habit.frequency.type === 'weekly' && habit.frequency.repeatTarget) {
-              const currentWeekKey = getWeekKey(viewDate);
-              let count = 0;
-              Object.keys(habit.history).forEach(dateStr => {
-                if (habit.history[dateStr] === 'completed') {
-                  const localDate = parseLocalDate(dateStr);
-                  if (getWeekKey(localDate) === currentWeekKey) {
-                    count++;
-                  }
+              // Logic: Hide habit if looking at a date before it was created
+              if (habit.createdAt) {
+                const createdDate = new Date(habit.createdAt);
+                const createdDateStr = getLocalDateString(createdDate);
+                // Simple string comparison works for ISO YYYY-MM-DD
+                if (viewDateString < createdDateStr) {
+                  return null;
                 }
-              });
-              weeklyProgress = { count, target: habit.frequency.repeatTarget };
-            }
+              }
 
-            if (isEditing) {
-              return (
-                <div key={habit.id} className="p-5 bg-white dark:bg-[#0F141D] rounded-2xl border-2 border-blue-500 shadow-lg transition-all animate-fade-in relative z-10">
-                  <div className="flex flex-col gap-6">
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Editing Habit</h3>
-                      <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                        <X size={18} />
-                      </button>
-                    </div>
+              const status = habit.history[viewDateString];
+              const isDragging = draggedIndex === index;
+              const isEditing = editingId === habit.id;
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                        <div>
-                          <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 block">Title</label>
-                          <input
-                            type="text"
-                            value={editTitle}
-                            onChange={(e) => setEditTitle(e.target.value)}
-                            className="w-full text-base font-semibold px-4 py-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
-                            autoFocus
-                            placeholder="Habit name"
-                          />
-                        </div>
+              // Calculate weekly progress if applicable
+              let weeklyProgress = null;
+              if (habit.frequency.type === 'weekly' && habit.frequency.repeatTarget) {
+                const currentWeekKey = getWeekKey(viewDate);
+                let count = 0;
+                Object.keys(habit.history).forEach(dateStr => {
+                  if (habit.history[dateStr] === 'completed') {
+                    const localDate = parseLocalDate(dateStr);
+                    if (getWeekKey(localDate) === currentWeekKey) {
+                      count++;
+                    }
+                  }
+                });
+                weeklyProgress = { count, target: habit.frequency.repeatTarget };
+              }
 
-                        <div>
-                          <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 block">Category</label>
-                          <div className="flex gap-2 flex-wrap">
-                            {CATEGORIES.map(cat => (
-                              <button
-                                key={`edit-cat-${cat}`}
-                                type="button"
-                                onClick={() => setEditCategory(cat)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${editCategory === cat
-                                  ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-md'
-                                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-                                  }`}
-                              >
-                                <span>{cat}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+              if (isEditing) {
+                return (
+                  <div key={habit.id} className="p-5 bg-white dark:bg-[#0F141D] rounded-2xl border-2 border-blue-500 shadow-lg transition-all animate-fade-in relative z-10">
+                    <div className="flex flex-col gap-6">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Editing Habit</h3>
+                        <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                          <X size={18} />
+                        </button>
+                      </div>
 
-                        <div>
-                          <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 block">Frequency</label>
-                          <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl inline-flex mb-2">
-                            {(['daily', 'weekly', 'custom'] as const).map(type => (
-                              <button
-                                key={`edit-freq-${type}`}
-                                type="button"
-                                onClick={() => setEditFrequencyType(type)}
-                                className={`px-4 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${editFrequencyType === type
-                                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                                  }`}
-                              >
-                                {type}
-                              </button>
-                            ))}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 block">Title</label>
+                            <input
+                              type="text"
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              className="w-full text-base font-semibold px-4 py-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
+                              autoFocus
+                              placeholder="Habit name"
+                            />
                           </div>
 
-                          {editFrequencyType === 'custom' && (
-                            <div className="flex gap-2 flex-wrap animate-fade-in mt-2">
-                              {DAYS.map((dayLabel, dayIndex) => (
+                          <div>
+                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 block">Category</label>
+                            <div className="flex gap-2 flex-wrap">
+                              {CATEGORIES.map(cat => (
                                 <button
-                                  key={`edit-day-${dayLabel}`}
+                                  key={`edit-cat-${cat}`}
                                   type="button"
-                                  onClick={() => toggleEditDay(dayIndex)}
-                                  className={`w-9 h-9 rounded-xl text-xs font-bold flex items-center justify-center transition-all ${editCustomDays.includes(dayIndex)
-                                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20 scale-105'
-                                    : 'bg-white dark:bg-gray-800 text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-indigo-300'
+                                  onClick={() => setEditCategory(cat)}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${editCategory === cat
+                                    ? 'bg-gray-900 dark:bg-white text-white dark:text-black shadow-md'
+                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                                     }`}
                                 >
-                                  {dayLabel}
+                                  <span>{cat}</span>
                                 </button>
                               ))}
                             </div>
-                          )}
+                          </div>
 
-                          {editFrequencyType === 'weekly' && (
-                            <div className="flex items-center gap-3 animate-fade-in mt-3 pl-1">
-                              <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Target days/week:</span>
-                              <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-1">
-                                <button type="button" onClick={() => setEditRepeatTarget(Math.max(1, editRepeatTarget - 1))} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 font-bold transition-colors w-8">-</button>
-                                <span className="font-mono font-bold text-gray-900 dark:text-white w-6 text-center">{editRepeatTarget}</span>
-                                <button type="button" onClick={() => setEditRepeatTarget(Math.min(7, editRepeatTarget + 1))} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 font-bold transition-colors w-8">+</button>
-                              </div>
+                          <div>
+                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 block">Frequency</label>
+                            <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl inline-flex mb-2">
+                              {(['daily', 'weekly', 'custom'] as const).map(type => (
+                                <button
+                                  key={`edit-freq-${type}`}
+                                  type="button"
+                                  onClick={() => setEditFrequencyType(type)}
+                                  className={`px-4 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${editFrequencyType === type
+                                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                    }`}
+                                >
+                                  {type}
+                                </button>
+                              ))}
                             </div>
-                          )}
+
+                            {editFrequencyType === 'custom' && (
+                              <div className="flex gap-2 flex-wrap animate-fade-in mt-2">
+                                {DAYS.map((dayLabel, dayIndex) => (
+                                  <button
+                                    key={`edit-day-${dayLabel}`}
+                                    type="button"
+                                    onClick={() => toggleEditDay(dayIndex)}
+                                    className={`w-9 h-9 rounded-xl text-xs font-bold flex items-center justify-center transition-all ${editCustomDays.includes(dayIndex)
+                                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20 scale-105'
+                                      : 'bg-white dark:bg-gray-800 text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-indigo-300'
+                                      }`}
+                                  >
+                                    {dayLabel}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {editFrequencyType === 'weekly' && (
+                              <div className="flex items-center gap-3 animate-fade-in mt-3 pl-1">
+                                <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">Target days/week:</span>
+                                <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-1">
+                                  <button type="button" onClick={() => setEditRepeatTarget(Math.max(1, editRepeatTarget - 1))} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 font-bold transition-colors w-8">-</button>
+                                  <span className="font-mono font-bold text-gray-900 dark:text-white w-6 text-center">{editRepeatTarget}</span>
+                                  <button type="button" onClick={() => setEditRepeatTarget(Math.min(7, editRepeatTarget + 1))} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 font-bold transition-colors w-8">+</button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="space-y-5">
+                          <div>
+                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 block">
+                              Target Duration (Optional)
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min="0"
+                                value={editTargetDuration}
+                                onChange={(e) => setEditTargetDuration(e.target.value)}
+                                placeholder="e.g. 30"
+                                className="w-full pl-10 pr-20 py-2.5 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl text-sm focus:ring-2 focus:ring-blue-500/50 outline-none transition-all appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              />
+                              <Clock size={16} className="absolute left-3.5 top-3 text-gray-400" />
+                              <span className="absolute right-9 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-medium pointer-events-none">min</span>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-2">
+                              Micro-steps
+                            </label>
+                            <div className="space-y-2 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
+                              {editMicroSteps.map((step, idx) => (
+                                <div key={step.id} className="flex gap-2 items-center group">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                                  <input
+                                    type="text"
+                                    value={step.text}
+                                    onChange={(e) => {
+                                      const next = [...editMicroSteps];
+                                      next[idx].text = e.target.value;
+                                      setEditMicroSteps(next);
+                                    }}
+                                    className="flex-1 min-w-0 bg-transparent text-sm text-gray-900 dark:text-white border-b border-transparent focus:border-emerald-500 group-hover:border-gray-200 dark:group-hover:border-gray-700 outline-none transition-colors py-1"
+                                    placeholder={`Step ${idx + 1}`}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditMicroSteps(prev => prev.filter((_, i) => i !== idx))}
+                                    className="text-gray-400 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              ))}
+                              <button
+                                type="button"
+                                onClick={() => setEditMicroSteps([...editMicroSteps, { id: crypto.randomUUID(), text: '', completed: false }])}
+                                className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1.5 mt-2 px-1"
+                              >
+                                <Plus size={14} /> Add Micro-step
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="space-y-5">
-                        <div>
-                          <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 block">
-                            Target Duration (Optional)
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              min="0"
-                              value={editTargetDuration}
-                              onChange={(e) => setEditTargetDuration(e.target.value)}
-                              placeholder="e.g. 30"
-                              className="w-full pl-10 pr-20 py-2.5 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl text-sm focus:ring-2 focus:ring-blue-500/50 outline-none transition-all appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                            <Clock size={16} className="absolute left-3.5 top-3 text-gray-400" />
-                            <span className="absolute right-9 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-medium pointer-events-none">min</span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-2">
-                            Micro-steps
-                          </label>
-                          <div className="space-y-2 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
-                            {editMicroSteps.map((step, idx) => (
-                              <div key={step.id} className="flex gap-2 items-center group">
-                                <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                                <input
-                                  type="text"
-                                  value={step.text}
-                                  onChange={(e) => {
-                                    const next = [...editMicroSteps];
-                                    next[idx].text = e.target.value;
-                                    setEditMicroSteps(next);
-                                  }}
-                                  className="flex-1 min-w-0 bg-transparent text-sm text-gray-900 dark:text-white border-b border-transparent focus:border-emerald-500 group-hover:border-gray-200 dark:group-hover:border-gray-700 outline-none transition-colors py-1"
-                                  placeholder={`Step ${idx + 1}`}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => setEditMicroSteps(prev => prev.filter((_, i) => i !== idx))}
-                                  className="text-gray-400 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                                >
-                                  <X size={14} />
-                                </button>
-                              </div>
-                            ))}
-                            <button
-                              type="button"
-                              onClick={() => setEditMicroSteps([...editMicroSteps, { id: crypto.randomUUID(), text: '', completed: false }])}
-                              className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1.5 mt-2 px-1"
-                            >
-                              <Plus size={14} /> Add Micro-step
-                            </button>
-                          </div>
-                        </div>
+                      <div className="flex justify-end gap-3 pt-2">
+                        <button
+                          onClick={() => setEditingId(null)}
+                          className="px-4 py-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => saveEditing(habit.id)}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                        >
+                          Save Changes
+                        </button>
                       </div>
                     </div>
+                  </div>
+                );
+              }
 
-                    <div className="flex justify-end gap-3 pt-2">
+              return (
+                <div
+                  key={habit.id}
+                  draggable
+                  onDragStart={(e) => {
+                    setDraggedIndex(index);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragEnd={handleDragEnd}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  className={`flex items-center justify-between p-4 rounded-2xl border transition-all group relative cursor-grab active:cursor-grabbing ${isTransparent
+                    ? 'bg-white/60 dark:bg-[#0F141D]/85 backdrop-blur-xl border-white/20 dark:border-[#1F2733]'
+                    : 'bg-white dark:bg-[#0F141D] border-gray-100 dark:border-[#1F2733]'
+                    } ${isDragging
+                      ? 'opacity-50 scale-95'
+                      : 'hover:border-gray-200 dark:hover:border-[#2A3444]'
+                    }`}
+                >
+                  <div className="flex items-center gap-4 flex-1 min-w-0 mr-2">
+                    {/* Drag Handle */}
+                    <div
+                      className="text-gray-300 dark:text-gray-600 transition-colors flex-shrink-0"
+                      title="Drag to reorder"
+                    >
+                      <GripVertical size={18} />
+                    </div>
+
+                    {/* Circle Checkbox */}
+                    <button
+                      onClick={() => onUpdateStatus(habit.id, viewDateString, status === 'completed' ? null : 'completed')}
+                      className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${status === 'completed'
+                        ? 'bg-green-500 border-green-500 text-white'
+                        : 'border-gray-300 dark:border-[#2A3444] text-transparent hover:border-gray-400 dark:hover:border-slate-500'
+                        }`}
+                    >
+                      {status === 'completed' && <Check size={16} strokeWidth={3} />}
+                    </button>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-3">
+                        {/* Category Icon */}
+                        <div className="p-2.5 bg-gray-100 dark:bg-[#121821] rounded-2xl text-gray-400 dark:text-slate-400">
+                          {CATEGORY_ICONS[habit.category] || <StarIcon className="w-5 h-5" />}
+                        </div>
+                        <div>
+                          <h3 className={`font-semibold text-lg transition-colors truncate ${status === 'completed'
+                            ? 'text-gray-500 line-through decoration-gray-500' // Strikethrough for completed
+                            : 'text-gray-900 dark:text-slate-100'
+                            }`}>
+                            {habit.title}
+                          </h3>
+                          <span className="text-[10px] font-bold tracking-wider uppercase text-gray-500 dark:text-slate-500 bg-gray-100 dark:bg-[#121821] px-1.5 py-0.5 rounded">
+                            {habit.category}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Micro-steps if any */}
+                      {habit.microSteps && habit.microSteps.length > 0 && (
+                        <div className="mt-3 ml-[3.25rem] space-y-1.5">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+                              Micro-steps
+                            </span>
+                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full">
+                              {habit.microSteps.filter(s => s.completed).length}/{habit.microSteps.length}
+                            </span>
+                          </div>
+                          {habit.microSteps.map((step, stepIdx) => (
+                            <button
+                              key={step.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const updatedSteps = habit.microSteps!.map((s, i) =>
+                                  i === stepIdx ? { ...s, completed: !s.completed } : s
+                                );
+                                onEditHabit(habit.id, { microSteps: updatedSteps });
+                              }}
+                              className="flex items-center gap-2.5 w-full text-left group/step py-1 px-2 -mx-2 rounded-lg hover:bg-gray-50 dark:hover:bg-[#121821] transition-colors"
+                            >
+                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${step.completed
+                                  ? 'bg-emerald-500 border-emerald-500 text-white'
+                                  : 'border-gray-300 dark:border-[#2A3444] group-hover/step:border-emerald-400'
+                                }`}>
+                                {step.completed && <Check size={10} strokeWidth={3} />}
+                              </div>
+                              <span className={`text-sm transition-colors ${step.completed
+                                  ? 'text-gray-400 dark:text-slate-500 line-through'
+                                  : 'text-gray-700 dark:text-slate-300'
+                                }`}>
+                                {step.text}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    {/* Streak */}
+                    <div className="flex items-center gap-1.5 text-orange-500 dark:text-orange-500/90 font-bold bg-orange-500/10 px-2 py-1 rounded-lg">
+                      <FireIcon className="w-4 h-4" />
+                      <span className="text-sm">{habit.streak}</span>
+                    </div>
+
+                    {/* Timer (if applicable) */}
+                    {!!habit.targetDuration && (
                       <button
-                        onClick={() => setEditingId(null)}
-                        className="px-4 py-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setStopwatchHabitId(habit.id);
+                        }}
+                        className="text-gray-400 hover:text-white p-1.5 bg-gray-100 dark:bg-[#121821] rounded-lg transition-colors"
                       >
-                        Cancel
+                        <ClockIcon className="w-4 h-4" />
                       </button>
+                    )}
+
+                    {/* Actions Menu */}
+                    <div className="relative">
                       <button
-                        onClick={() => saveEditing(habit.id)}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setOpenMenuHabitId(openMenuHabitId === habit.id ? null : habit.id);
+                        }}
+                        className="relative z-10 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1"
                       >
-                        Save Changes
+                        <EllipsisVerticalIcon className="w-5 h-5" />
                       </button>
+
+                      {openMenuHabitId === habit.id && (
+                        <div className="absolute right-0 top-full mt-1 w-32 bg-[#1A1A1A] rounded-lg shadow-xl border border-white/10 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startEditing(habit);
+                              setOpenMenuHabitId(null);
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/5 flex items-center gap-2"
+                          >
+                            <PencilSquareIcon className="w-4 h-4" /> Edit
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteHabit(habit.id);
+                              setOpenMenuHabitId(null);
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-red-900/20 flex items-center gap-2"
+                          >
+                            <TrashIcon className="w-4 h-4" /> Delete
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               );
-            }
-
-            return (
-              <div
-                key={habit.id}
-                draggable
-                onDragStart={(e) => {
-                  setDraggedIndex(index);
-                  e.dataTransfer.effectAllowed = 'move';
-                }}
-                onDragEnd={handleDragEnd}
-                onDragOver={(e) => handleDragOver(e, index)}
-                className={`flex items-center justify-between p-4 rounded-2xl border transition-all group relative cursor-grab active:cursor-grabbing ${isTransparent
-                  ? 'bg-white/60 dark:bg-[#0F141D]/85 backdrop-blur-xl border-white/20 dark:border-[#1F2733]'
-                  : 'bg-white dark:bg-[#0F141D] border-gray-100 dark:border-[#1F2733]'
-                  } ${isDragging
-                    ? 'opacity-50 scale-95'
-                    : 'hover:border-gray-200 dark:hover:border-[#2A3444]'
-                  }`}
-              >
-                <div className="flex items-center gap-4 flex-1 min-w-0 mr-2">
-                  {/* Drag Handle */}
-                  <div
-                    className="text-gray-300 dark:text-gray-600 transition-colors flex-shrink-0"
-                    title="Drag to reorder"
-                  >
-                    <GripVertical size={18} />
-                  </div>
-
-                  {/* Circle Checkbox */}
-                  <button
-                    onClick={() => onUpdateStatus(habit.id, viewDateString, status === 'completed' ? null : 'completed')}
-                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${status === 'completed'
-                      ? 'bg-green-500 border-green-500 text-white'
-                      : 'border-gray-300 dark:border-[#2A3444] text-transparent hover:border-gray-400 dark:hover:border-slate-500'
-                      }`}
-                  >
-                    {status === 'completed' && <Check size={16} strokeWidth={3} />}
-                  </button>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-3">
-                      {/* Category Icon */}
-                      <div className="p-2.5 bg-gray-100 dark:bg-[#121821] rounded-2xl text-gray-400 dark:text-slate-400">
-                        {CATEGORY_ICONS[habit.category] || <StarIcon className="w-5 h-5" />}
-                      </div>
-                      <div>
-                        <h3 className={`font-semibold text-lg transition-colors truncate ${status === 'completed'
-                          ? 'text-gray-500 line-through decoration-gray-500' // Strikethrough for completed
-                          : 'text-gray-900 dark:text-slate-100'
-                          }`}>
-                          {habit.title}
-                        </h3>
-                        <span className="text-[10px] font-bold tracking-wider uppercase text-gray-500 dark:text-slate-500 bg-gray-100 dark:bg-[#121821] px-1.5 py-0.5 rounded">
-                          {habit.category}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Micro-steps if any */}
-                    {habit.microSteps && habit.microSteps.length > 0 && (
-                      <div className="mt-2 text-xs text-gray-500 ml-9 flex gap-2 items-center">
-                        <span className="bg-gray-100 dark:bg-[#121821] px-2 py-0.5 rounded text-gray-400 dark:text-slate-400">
-                          <GripVertical size={10} className="inline mr-1" />
-                          {habit.microSteps.filter(s => s.completed).length}/{habit.microSteps.length}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  {/* Streak */}
-                  <div className="flex items-center gap-1.5 text-orange-500 dark:text-orange-500/90 font-bold bg-orange-500/10 px-2 py-1 rounded-lg">
-                    <FireIcon className="w-4 h-4" />
-                    <span className="text-sm">{habit.streak}</span>
-                  </div>
-
-                  {/* Timer (if applicable) */}
-                  {!!habit.targetDuration && (
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setStopwatchHabitId(habit.id);
-                      }}
-                      className="text-gray-400 hover:text-white p-1.5 bg-gray-100 dark:bg-[#121821] rounded-lg transition-colors"
-                    >
-                      <ClockIcon className="w-4 h-4" />
-                    </button>
-                  )}
-
-                  {/* Actions Menu */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setOpenMenuHabitId(openMenuHabitId === habit.id ? null : habit.id);
-                      }}
-                      className="relative z-10 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1"
-                    >
-                      <EllipsisVerticalIcon className="w-5 h-5" />
-                    </button>
-
-                    {openMenuHabitId === habit.id && (
-                      <div className="absolute right-0 top-full mt-1 w-32 bg-[#1A1A1A] rounded-lg shadow-xl border border-white/10 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            startEditing(habit);
-                            setOpenMenuHabitId(null);
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-white/5 flex items-center gap-2"
-                        >
-                          <PencilSquareIcon className="w-4 h-4" /> Edit
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteHabit(habit.id);
-                            setOpenMenuHabitId(null);
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-red-900/20 flex items-center gap-2"
-                        >
-                          <TrashIcon className="w-4 h-4" /> Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
             })}
             {isToday && (
               <button
